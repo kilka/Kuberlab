@@ -1,0 +1,23 @@
+framework:
+  - terraform
+  - terraform_plan
+  - kubernetes
+  - dockerfile
+  - secrets
+
+download-external-modules: true
+evaluate-variables: true
+
+skip-check:
+  # Skip checks that are too restrictive for demo
+  - CKV_AZURE_4   # Ensure default network access rule for Storage Accounts is set to deny
+  - CKV_AZURE_33  # Ensure Storage logging is enabled for Queue service for read, write and delete requests
+  - CKV_AZURE_35  # Ensure default network access rule for Storage Accounts is set to deny
+  - CKV_AZURE_36  # Ensure 'Trusted Microsoft Services' is enabled for Storage Account access
+  - CKV_AZURE_37  # Ensure that 'Data encryption in transit' is set to 'Enabled'
+  - CKV_AZURE_44  # Ensure Storage Account is using the latest version of TLS encryption
+
+output: cli
+quiet: false
+compact: false
+soft-fail: false

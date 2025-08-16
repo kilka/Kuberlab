@@ -1,0 +1,16 @@
+# Copy this file to terraform.tfvars and update with your values
+
+environment  = "dev"
+project_name = "ocr"
+location     = "East US 2"
+sequence     = "001"
+
+# Optional: Azure AD group for AKS admin access
+# admin_group_object_id = "00000000-0000-0000-0000-000000000000"
+
+# Optional: GitHub repository for OIDC federation
+# github_repository = "yourusername/ocr-aks"
+
+# Optional: Override default values
+# cost_center = "engineering"
+# owner      = "platform-team"
