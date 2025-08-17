@@ -1,0 +1,8 @@
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: ocr-worker-trigger-auth
+  namespace: ocr
+spec:
+  podIdentity:
+    provider: azure-workload

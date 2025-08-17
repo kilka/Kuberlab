@@ -19,3 +19,13 @@ resources:
   - networkpolicies/allow-agc-to-api.yaml
   - networkpolicies/allow-api-egress.yaml
   - networkpolicies/allow-worker-egress.yaml
+  
+  # Applications
+  - api/
+  - worker/
+  
+  # Gateway API
+  - gateway/
+  
+  # KEDA Scaling
+  - keda/

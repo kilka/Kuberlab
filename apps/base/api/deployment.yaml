@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ocr-api
+  namespace: ocr
+  labels:
+    app: ocr-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ocr-api
+  template:
+    metadata:
+      labels:
+        app: ocr-api
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: ocr-api
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: api
+        image: ${ACR_NAME}.azurecr.io/ocr-api:v1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        env:
+        - name: SERVICEBUS_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: ocr-secrets
+              key: servicebus-connection-string
+        - name: STORAGE_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: ocr-secrets
+              key: storage-connection-string
+        - name: SERVICEBUS_QUEUE_NAME
+          value: "ocr-jobs"
+        - name: STORAGE_CONTAINER
+          value: "uploads"
+        - name: TABLE_NAME
+          value: "ocrjobs"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: prometheus
+          mountPath: /tmp/prometheus
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: prometheus
+        emptyDir: {}

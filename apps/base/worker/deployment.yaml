@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ocr-worker
+  namespace: ocr
+  labels:
+    app: ocr-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ocr-worker
+  template:
+    metadata:
+      labels:
+        app: ocr-worker
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: ocr-worker
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: worker
+        image: ${ACR_NAME}.azurecr.io/ocr-worker:v1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8001
+          name: metrics
+          protocol: TCP
+        env:
+        - name: SERVICEBUS_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: ocr-secrets
+              key: servicebus-connection-string
+        - name: STORAGE_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: ocr-secrets
+              key: storage-connection-string
+        - name: SERVICEBUS_QUEUE_NAME
+          value: "ocr-jobs"
+        - name: SERVICEBUS_POISON_QUEUE_NAME
+          value: "ocr-jobs-poison"
+        - name: STORAGE_UPLOAD_CONTAINER
+          value: "uploads"
+        - name: STORAGE_RESULT_CONTAINER
+          value: "results"
+        - name: TABLE_NAME
+          value: "ocrjobs"
+        - name: MAX_RETRIES
+          value: "3"
+        - name: METRICS_PORT
+          value: "8001"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+        livenessProbe:
+          httpGet:
+            path: /
+            port: metrics
+          initialDelaySeconds: 15
+          periodSeconds: 30
+          timeoutSeconds: 3
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: tesseract
+          mountPath: /tmp/tesseract
+        - name: prometheus
+          mountPath: /tmp/prometheus
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: tesseract
+        emptyDir: {}
+      - name: prometheus
+        emptyDir: {}
