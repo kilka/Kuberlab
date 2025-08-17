@@ -1,0 +1,19 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps
+  namespace: flux-system
+spec:
+  interval: 1m
+  path: ./clusters/demo/apps
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  targetNamespace: ocr
+  # Variable substitution from the handoff Secret
+  postBuild:
+    substituteFrom:
+    - kind: Secret
+      name: cluster-config
+      # Secret is in ocr namespace, not flux-system

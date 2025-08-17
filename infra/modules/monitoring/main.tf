@@ -49,10 +49,10 @@ resource "azurerm_monitor_data_collection_rule" "container_insights" {
       extension_name = "ContainerInsights"
       extension_json = jsonencode({
         "dataCollectionSettings" = {
-          "interval"                    = "1m"
-          "namespaceFilteringMode"      = "Off"
-          "namespaces"                  = ["kube-system", "gatekeeper-system", "azure-arc"]
-          "enableContainerLogV2"        = true
+          "interval"               = "1m"
+          "namespaceFilteringMode" = "Off"
+          "namespaces"             = ["kube-system", "gatekeeper-system", "azure-arc"]
+          "enableContainerLogV2"   = true
         }
       })
       name = "ContainerInsightsExtension"

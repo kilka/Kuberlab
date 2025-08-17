@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-worker-egress
+  namespace: ocr
+spec:
+  podSelector:
+    matchLabels:
+      app: ocr-worker
+  policyTypes:
+  - Egress
+  egress:
+  # Allow DNS
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow HTTPS to Azure services
+  - ports:
+    - protocol: TCP
+      port: 443

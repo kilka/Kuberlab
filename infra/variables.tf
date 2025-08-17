@@ -51,10 +51,32 @@ variable "owner" {
   default     = "platform-team"
 }
 
+variable "budget_alert_email" {
+  description = "Email address for budget alerts (required)"
+  type        = string
+  
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.budget_alert_email))
+    error_message = "Must be a valid email address for budget alerts."
+  }
+}
+
+variable "flux_repo_private" {
+  description = "Whether the Flux GitOps repo is private (requires SSH auth)"
+  type        = bool
+  default     = false # Set to true for production, false for quick demos
+}
+
+variable "github_username" {
+  description = "GitHub username or organization for the Flux GitOps repository"
+  type        = string
+  default     = "yourusername" # Update this or set in terraform.tfvars
+}
+
 locals {
   # Common naming convention
   name_prefix = "${var.environment}-${var.project_name}"
-  
+
   # Common tags applied to all resources
   common_tags = {
     Environment = var.environment

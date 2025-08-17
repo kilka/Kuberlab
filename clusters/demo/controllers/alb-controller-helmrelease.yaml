@@ -1,0 +1,21 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: alb-controller
+  namespace: flux-system
+spec:
+  interval: 10m
+  targetNamespace: kube-system
+  chart:
+    spec:
+      chart: alb-controller
+      version: "1.0.2"
+      sourceRef:
+        kind: HelmRepository
+        name: alb-controller
+        namespace: flux-system
+  values:
+    albController:
+      namespace: arc-system
+      podIdentity:
+        clientID: ${KUBELET_IDENTITY_CLIENT_ID}

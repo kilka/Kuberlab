@@ -26,7 +26,7 @@ resource "azurerm_subnet" "agc" {
   delegation {
     name = "Microsoft.ServiceNetworking/trafficControllers"
     service_delegation {
-      name    = "Microsoft.ServiceNetworking/trafficControllers"
+      name = "Microsoft.ServiceNetworking/trafficControllers"
       actions = [
         "Microsoft.Network/virtualNetworks/subnets/join/action",
       ]
@@ -34,23 +34,7 @@ resource "azurerm_subnet" "agc" {
   }
 }
 
-# PostgreSQL Subnet (delegated for database services)
-resource "azurerm_subnet" "postgres" {
-  name                 = "${var.name_prefix}-postgres-subnet-${var.sequence}"
-  resource_group_name  = var.resource_group_name
-  virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = [var.postgres_subnet_cidr]
-
-  delegation {
-    name = "Microsoft.DBforPostgreSQL/flexibleServers"
-    service_delegation {
-      name = "Microsoft.DBforPostgreSQL/flexibleServers"
-      actions = [
-        "Microsoft.Network/virtualNetworks/subnets/join/action",
-      ]
-    }
-  }
-}
+# No PostgreSQL subnet needed - using Table Storage instead
 
 # Network Security Group for AKS subnet
 resource "azurerm_network_security_group" "aks" {
@@ -92,29 +76,3 @@ resource "azurerm_subnet_network_security_group_association" "aks" {
   network_security_group_id = azurerm_network_security_group.aks.id
 }
 
-# Network Security Group for PostgreSQL subnet
-resource "azurerm_network_security_group" "postgres" {
-  name                = "${var.name_prefix}-postgres-nsg-${var.sequence}"
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  tags                = var.tags
-
-  # Allow inbound from AKS subnet only
-  security_rule {
-    name                       = "AllowAKSPostgres"
-    priority                   = 100
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "5432"
-    source_address_prefix      = var.aks_subnet_cidr
-    destination_address_prefix = var.postgres_subnet_cidr
-  }
-}
-
-# Associate NSG with PostgreSQL subnet
-resource "azurerm_subnet_network_security_group_association" "postgres" {
-  subnet_id                 = azurerm_subnet.postgres.id
-  network_security_group_id = azurerm_network_security_group.postgres.id
-}

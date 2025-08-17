@@ -49,14 +49,9 @@ output "storage_account_primary_blob_endpoint" {
   value       = module.storage.primary_blob_endpoint
 }
 
-output "postgresql_fqdn" {
-  description = "FQDN of the PostgreSQL server"
-  value       = module.postgresql.fqdn
-}
-
-output "postgresql_database_name" {
-  description = "Name of the PostgreSQL database"
-  value       = module.postgresql.database_name
+output "storage_table_endpoint" {
+  description = "Table storage endpoint for job metadata"
+  value       = module.storage.primary_table_endpoint
 }
 
 output "service_bus_namespace_name" {

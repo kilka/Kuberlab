@@ -4,30 +4,10 @@ resource "azurerm_container_registry" "main" {
   resource_group_name = var.resource_group_name
   location            = var.location
   sku                 = var.sku
-  admin_enabled       = false  # Use Azure AD authentication instead
+  admin_enabled       = false # Use Azure AD authentication instead
   tags                = var.tags
 
-  # Enable container image scanning for Premium SKU
-  dynamic "retention_policy" {
-    for_each = var.sku == "Premium" ? [1] : []
-    content {
-      days    = 7
-      enabled = true
-    }
-  }
+  # Note: retention_policy and trust_policy are only available for Premium SKU
+  # These would need to be configured separately if using Premium
 
-  dynamic "trust_policy" {
-    for_each = var.sku == "Premium" ? [1] : []
-    content {
-      enabled = false
-    }
-  }
-
-  # Quarantine policy for Premium SKU
-  dynamic "quarantine_policy" {
-    for_each = var.sku == "Premium" ? [1] : []
-    content {
-      enabled = false
-    }
-  }
 }

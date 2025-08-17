@@ -28,7 +28,7 @@ variable "sku" {
   description = "SKU for the Azure Container Registry"
   type        = string
   default     = "Basic"
-  
+
   validation {
     condition     = contains(["Basic", "Standard", "Premium"], var.sku)
     error_message = "SKU must be one of: Basic, Standard, Premium."

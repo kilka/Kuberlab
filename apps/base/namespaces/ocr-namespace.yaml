@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ocr
+  labels:
+    # Pod Security Standards - enforce baseline policy
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    # Azure Workload Identity
+    workload-identity: enabled
+    # General labels
+    app: ocr
+    environment: demo
+    managed-by: flux

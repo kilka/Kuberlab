@@ -28,12 +28,3 @@ output "agc_subnet_name" {
   value       = azurerm_subnet.agc.name
 }
 
-output "postgres_subnet_id" {
-  description = "ID of the PostgreSQL subnet"
-  value       = azurerm_subnet.postgres.id
-}
-
-output "postgres_subnet_name" {
-  description = "Name of the PostgreSQL subnet"
-  value       = azurerm_subnet.postgres.name
-}

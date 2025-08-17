@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-agc-to-api
+  namespace: ocr
+spec:
+  podSelector:
+    matchLabels:
+      app: ocr-api
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: arc-system
+    ports:
+    - protocol: TCP
+      port: 8000

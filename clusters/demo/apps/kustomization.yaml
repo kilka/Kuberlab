@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # Base application resources
+  - ../../../apps/base
+  # Flux Kustomization for variable substitution
+  - kustomization-apps.yaml

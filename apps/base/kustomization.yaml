@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # Namespaces
+  - namespaces/ocr-namespace.yaml
+  - namespaces/arc-system-namespace.yaml
+  
+  # Service Accounts
+  - serviceaccounts/ocr-api-sa.yaml
+  - serviceaccounts/ocr-worker-sa.yaml
+  
+  # External Secrets (replaces static ConfigMaps)
+  - external-secrets/secretstore.yaml
+  - external-secrets/externalsecret.yaml
+  
+  # Network Policies
+  - networkpolicies/default-deny-all.yaml
+  - networkpolicies/allow-agc-to-api.yaml
+  - networkpolicies/allow-api-egress.yaml
+  - networkpolicies/allow-worker-egress.yaml

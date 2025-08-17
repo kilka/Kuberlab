@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-config
+  namespace: ocr
+data:
+  # These values must be updated after deployment
+  # Run: kubectl create configmap cluster-config -n ocr --from-literal=KEY_VAULT_NAME=<your-kv-name>
+  KEY_VAULT_NAME: "PLACEHOLDER_WILL_BE_UPDATED"

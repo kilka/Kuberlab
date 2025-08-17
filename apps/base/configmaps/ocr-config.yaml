@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ocr-config
+  namespace: ocr
+data:
+  # Service Bus configuration
+  SERVICE_BUS_NAMESPACE: ${SERVICE_BUS_NAMESPACE}
+  SERVICE_BUS_QUEUE: ${SERVICE_BUS_QUEUE}
+  
+  # Storage configuration
+  STORAGE_ACCOUNT_NAME: ${STORAGE_ACCOUNT_NAME}
+  STORAGE_CONTAINER_UPLOADS: uploads
+  STORAGE_CONTAINER_RESULTS: results
+  
+  # Key Vault configuration
+  KEY_VAULT_NAME: ${KEY_VAULT_NAME}
+  
+  # Application settings
+  LOG_LEVEL: INFO
+  ENVIRONMENT: demo

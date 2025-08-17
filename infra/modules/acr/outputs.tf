@@ -3,6 +3,11 @@ output "id" {
   value       = azurerm_container_registry.main.id
 }
 
+output "registry_id" {
+  description = "ID of the Azure Container Registry"
+  value       = azurerm_container_registry.main.id
+}
+
 output "name" {
   description = "Name of the Azure Container Registry"
   value       = azurerm_container_registry.main.name

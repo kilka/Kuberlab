@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-config
+  namespace: flux-system
+data:
+  # These values will be set by Terraform via kubectl after cluster creation
+  # For now, using placeholders that will be replaced
+  KUBELET_IDENTITY_CLIENT_ID: "to-be-replaced"
+  WORKLOAD_IDENTITY_CLIENT_ID: "to-be-replaced"
+  TENANT_ID: "to-be-replaced"
+  SERVICE_BUS_NAMESPACE: "to-be-replaced"
+  SERVICE_BUS_QUEUE: "to-be-replaced"
+  STORAGE_ACCOUNT_NAME: "to-be-replaced"
+  KEY_VAULT_NAME: "to-be-replaced"
