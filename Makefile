@@ -22,13 +22,15 @@ help:
 	@echo "======================="
 	@echo ""
 	@echo "$(GREEN)Commands:$(NC)"
-	@echo "  make init        - Initialize Terraform"
-	@echo "  make plan        - Review what will be created"
-	@echo "  make deploy      - Create everything in Azure"
-	@echo "  make destroy     - Remove everything from Azure (zero traces!)"
-	@echo "  make connect     - Connect to AKS cluster"
-	@echo "  make flux-status - Check Flux GitOps sync status"
-	@echo "  make cost        - Check current costs"
+	@echo "  make init           - Initialize Terraform"
+	@echo "  make plan           - Review what will be created"
+	@echo "  make deploy         - Create everything in Azure"
+	@echo "  make destroy        - Remove everything (fast, skips Flux cleanup)"
+	@echo "  make destroy-slow   - Remove everything (tries clean Flux removal first)"
+	@echo "  make destroy-nuclear - ☢️  Delete entire resource group (bypasses Terraform)"
+	@echo "  make connect        - Connect to AKS cluster"
+	@echo "  make flux-status    - Check Flux GitOps sync status"
+	@echo "  make cost           - Check current costs"
 	@echo ""
 	@echo "$(YELLOW)⚠ Costs: ~$$0.70/hour when deployed$(NC)"
 
@@ -66,7 +68,14 @@ deploy: plan
 destroy:
 	@echo "$(RED)This will DELETE everything!$(NC)"
 	@read -p "Type 'destroy' to confirm: " confirm && [ "$$confirm" = "destroy" ]
-	@cd $(TF_DIR) && terraform destroy -auto-approve
+	@echo "$(BLUE)Removing Flux/K8s resources from state (will be destroyed with cluster)...$(NC)"
+	@cd $(TF_DIR) && \
+		for resource in $$(terraform state list 2>/dev/null | grep -E "(flux|kubernetes_namespace|kubernetes_secret\.cluster_config)" || echo ""); do \
+			echo "  Removing $$resource from state..." && \
+			terraform state rm "$$resource" 2>/dev/null || true; \
+		done
+	@echo "$(BLUE)Destroying infrastructure...$(NC)"
+	@cd $(TF_DIR) && terraform destroy -auto-approve -parallelism=30
 	@echo "$(GREEN)✓ Everything removed$(NC)"
 
 connect:
@@ -99,8 +108,50 @@ cost:
 outputs:
 	@cd $(TF_DIR) && terraform output
 
+destroy-slow:
+	@echo "$(YELLOW)Attempting careful Flux cleanup before destroy...$(NC)"
+	@read -p "Type 'destroy' to confirm: " confirm && [ "$$confirm" = "destroy" ]
+	@# Try to cleanly remove Flux from Azure first
+	@cd $(TF_DIR) && \
+		CLUSTER_NAME=$$(terraform output -raw aks_cluster_name 2>/dev/null || echo "") && \
+		RG=$$(terraform output -raw resource_group_name 2>/dev/null || echo "") && \
+		if [ -n "$$CLUSTER_NAME" ] && [ -n "$$RG" ]; then \
+			echo "Removing Flux configuration from Azure..." && \
+			timeout 60s az k8s-configuration flux delete \
+				--name flux-system \
+				--cluster-name "$$CLUSTER_NAME" \
+				--resource-group "$$RG" \
+				--cluster-type managedClusters \
+				--yes --force 2>/dev/null || true && \
+			echo "Removing Flux extension..." && \
+			timeout 60s az k8s-extension delete \
+				--name flux \
+				--cluster-name "$$CLUSTER_NAME" \
+				--resource-group "$$RG" \
+				--cluster-type managedClusters \
+				--yes --force 2>/dev/null || true; \
+		fi
+	@echo "$(BLUE)Running terraform destroy...$(NC)"
+	@cd $(TF_DIR) && terraform destroy -auto-approve
+	@echo "$(GREEN)✓ Everything removed$(NC)"
+
+destroy-nuclear:
+	@echo "$(RED)☢️  NUCLEAR OPTION - Deleting entire resource group!$(NC)"
+	@read -p "Type 'NUCLEAR' to confirm: " confirm && [ "$$confirm" = "NUCLEAR" ]
+	@cd $(TF_DIR) && \
+		RG=$$(terraform output -raw resource_group_name 2>/dev/null || echo "") && \
+		if [ -n "$$RG" ]; then \
+			echo "$(YELLOW)Deleting resource group $$RG...$(NC)" && \
+			az group delete --name $$RG --yes --no-wait && \
+			echo "$(YELLOW)Clearing Terraform state...$(NC)" && \
+			terraform state pull | jq 'del(.resources) | .serial += 1' | terraform state push - && \
+			echo "$(GREEN)✓ Resource group deletion initiated (will complete in background)$(NC)"; \
+		else \
+			echo "$(RED)Could not find resource group$(NC)"; \
+		fi
+
 clean:
 	@rm -rf $(TF_DIR)/.terraform $(TF_DIR)/tfplan $(TF_DIR)/.terraform.lock.hcl
 	@echo "$(GREEN)✓ Cleaned$(NC)"
 
-.PHONY: help init plan deploy destroy connect flux-status cost outputs clean
+.PHONY: help init plan deploy destroy destroy-slow destroy-nuclear connect flux-status cost outputs clean

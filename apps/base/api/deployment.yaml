@@ -35,12 +35,12 @@ spec:
         - name: SERVICEBUS_CONNECTION_STRING
           valueFrom:
             secretKeyRef:
-              name: ocr-secrets
+              name: ocr-config
               key: servicebus-connection-string
         - name: STORAGE_CONNECTION_STRING
           valueFrom:
             secretKeyRef:
-              name: ocr-secrets
+              name: ocr-config
               key: storage-connection-string
         - name: SERVICEBUS_QUEUE_NAME
           value: "ocr-jobs"

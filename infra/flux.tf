@@ -9,6 +9,12 @@ resource "azurerm_kubernetes_cluster_extension" "flux" {
   release_namespace = "flux-system"
   
   depends_on = [module.aks]
+  
+  timeouts {
+    create = "20m"
+    update = "20m"
+    delete = "10m"
+  }
 }
 
 # Configure Flux to sync from public GitHub repository
@@ -69,6 +75,12 @@ resource "azurerm_kubernetes_flux_configuration" "main" {
     azurerm_kubernetes_cluster_extension.flux,
     module.aks
   ]
+  
+  timeouts {
+    create = "20m"
+    update = "20m"
+    delete = "1m"  # Short timeout - we remove from state anyway
+  }
 }
 
 # Output Flux status
