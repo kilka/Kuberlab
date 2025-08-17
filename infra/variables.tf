@@ -61,17 +61,6 @@ variable "budget_alert_email" {
   }
 }
 
-variable "flux_repo_private" {
-  description = "Whether the Flux GitOps repo is private (requires SSH auth)"
-  type        = bool
-  default     = false # Set to true for production, false for quick demos
-}
-
-variable "github_username" {
-  description = "GitHub username or organization for the Flux GitOps repository"
-  type        = string
-  default     = "yourusername" # Update this or set in terraform.tfvars
-}
 
 locals {
   # Common naming convention

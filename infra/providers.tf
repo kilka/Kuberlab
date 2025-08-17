@@ -21,10 +21,6 @@ terraform {
       source  = "hashicorp/null"
       version = "~> 3.2"
     }
-    tls = {
-      source  = "hashicorp/tls"
-      version = "~> 4.0"
-    }
     # Flux provider for GitOps - using Azure Flux Extension
     # No direct provider needed since we'll use azurerm_kubernetes_flux_configuration
   }
