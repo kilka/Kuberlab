@@ -155,6 +155,10 @@ module "keyvault" {
   service_bus_queue        = module.servicebus.queue_name
   service_bus_poison_queue = module.servicebus.poison_queue_name
   
+  # Connection strings for the applications
+  service_bus_connection_string = module.servicebus.namespace_primary_connection_string
+  storage_connection_string     = "DefaultEndpointsProtocol=https;AccountName=${module.storage.account_name};AccountKey=${module.storage.primary_access_key};EndpointSuffix=core.windows.net"
+  
   tags = local.common_tags
 }
 

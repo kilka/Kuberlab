@@ -70,3 +70,15 @@ variable "service_bus_poison_queue" {
   type        = string
   default     = ""
 }
+
+variable "service_bus_connection_string" {
+  description = "Service Bus connection string"
+  type        = string
+  sensitive   = true
+}
+
+variable "storage_connection_string" {
+  description = "Storage account connection string"
+  type        = string
+  sensitive   = true
+}

@@ -67,6 +67,21 @@ resource "azurerm_key_vault_secret" "key_vault_name" {
   depends_on   = [azurerm_role_assignment.current_user_admin]
 }
 
+# Store connection strings that apps actually need
+resource "azurerm_key_vault_secret" "service_bus_connection_string" {
+  name         = "servicebus-connection-string"
+  value        = var.service_bus_connection_string
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.current_user_admin]
+}
+
+resource "azurerm_key_vault_secret" "storage_connection_string" {
+  name         = "storage-connection-string"
+  value        = var.storage_connection_string
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.current_user_admin]
+}
+
 # Role assignment for current user/service principal to manage Key Vault
 resource "azurerm_role_assignment" "current_user_admin" {
   scope                = azurerm_key_vault.main.id
