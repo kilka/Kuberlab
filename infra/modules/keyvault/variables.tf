@@ -28,8 +28,18 @@ variable "purge_protection_enabled" {
   default     = false
 }
 
-variable "managed_identity_principal_id" {
-  description = "Principal ID of managed identity to grant access to Key Vault"
+variable "api_identity_principal_id" {
+  description = "Principal ID of API managed identity to grant access to Key Vault"
+  type        = string
+}
+
+variable "worker_identity_principal_id" {
+  description = "Principal ID of Worker managed identity to grant access to Key Vault"
+  type        = string
+}
+
+variable "github_identity_principal_id" {
+  description = "Principal ID of GitHub managed identity to grant access to Key Vault"
   type        = string
 }
 
@@ -53,4 +63,10 @@ variable "service_bus_namespace" {
 variable "service_bus_queue" {
   description = "Service Bus queue name to store in Key Vault"
   type        = string
+}
+
+variable "service_bus_poison_queue" {
+  description = "Service Bus poison queue name to store in Key Vault"
+  type        = string
+  default     = ""
 }

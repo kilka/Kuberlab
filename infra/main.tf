@@ -49,7 +49,13 @@ module "aks" {
   subnet_id                  = module.network.aks_subnet_id
   log_analytics_workspace_id = module.monitoring.workspace_id
   tenant_id                  = local.tenant_id
-  tags                       = local.common_tags
+  
+  # Node configuration - Updated VM sizes due to capacity issues
+  system_node_vm_size   = "Standard_B2ms"  # Changed from default B2s
+  user_node_vm_size     = "Standard_B2ms"  # Changed from default B2s
+  user_node_min_count   = 1                # Changed from 0 to ensure KEDA/workloads can run
+  
+  tags = local.common_tags
   
   depends_on = [
     module.network,
@@ -61,6 +67,14 @@ module "aks" {
 resource "azurerm_role_assignment" "aks_acr_pull" {
   principal_id                     = module.aks.kubelet_identity.object_id
   role_definition_name             = "AcrPull"
+  scope                            = module.acr.registry_id
+  skip_service_principal_aad_check = true
+}
+
+# Role assignment for GitHub identity to push to ACR
+resource "azurerm_role_assignment" "github_acr_push" {
+  principal_id                     = module.identity.github_principal_id
+  role_definition_name             = "AcrPush"
   scope                            = module.acr.registry_id
   skip_service_principal_aad_check = true
 }
@@ -126,12 +140,15 @@ module "keyvault" {
   resource_group_name           = azurerm_resource_group.main.name
   location                      = azurerm_resource_group.main.location
   tenant_id                     = local.tenant_id
-  managed_identity_principal_id = module.identity.principal_id
+  api_identity_principal_id    = module.identity.api_principal_id
+  worker_identity_principal_id = module.identity.worker_principal_id
+  github_identity_principal_id = module.identity.github_principal_id
   
   # Configuration values to store as secrets for ESO
-  storage_account_name  = module.storage.account_name
-  service_bus_namespace = module.servicebus.namespace_name
-  service_bus_queue     = module.servicebus.queue_name
+  storage_account_name     = module.storage.account_name
+  service_bus_namespace    = module.servicebus.namespace_name
+  service_bus_queue        = module.servicebus.queue_name
+  service_bus_poison_queue = module.servicebus.poison_queue_name
   
   tags = local.common_tags
 }

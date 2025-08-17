@@ -104,19 +104,14 @@ resource "azurerm_kubernetes_cluster_node_pool" "user" {
   os_disk_type    = "Ephemeral"
   os_disk_size_gb = 30
 
-  # Enable spot instances for cost optimization
-  priority        = "Spot"
-  eviction_policy = "Delete"
-  spot_max_price  = var.spot_max_price
-
+  # Regular instances for reliability (spot instances were causing provisioning issues)
+  priority        = "Regular"
+  
   node_labels = {
-    "node-type"                             = "user"
-    "kubernetes.azure.com/scalesetpriority" = "spot"
+    "node-type" = "user"
   }
-
-  node_taints = [
-    "kubernetes.azure.com/scalesetpriority=spot:NoSchedule"
-  ]
+  
+  # No taints - allow all workloads to schedule
 
   tags = var.tags
 }

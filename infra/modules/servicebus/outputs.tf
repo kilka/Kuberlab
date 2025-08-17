@@ -29,3 +29,13 @@ output "queue_id" {
   description = "OCR jobs queue ID"
   value       = azurerm_servicebus_queue.ocr_jobs.id
 }
+
+output "poison_queue_name" {
+  description = "OCR jobs poison queue name"
+  value       = azurerm_servicebus_queue.ocr_jobs_poison.name
+}
+
+output "poison_queue_id" {
+  description = "OCR jobs poison queue ID"
+  value       = azurerm_servicebus_queue.ocr_jobs_poison.id
+}

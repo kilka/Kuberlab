@@ -25,3 +25,19 @@ resource "azurerm_servicebus_queue" "ocr_jobs" {
   # Enable sessions for message ordering if needed
   requires_session = false
 }
+
+# Poison queue for failed messages (DLQ)
+# Note: Azure Service Bus automatically creates a DLQ subqueue at /$deadletterqueue
+# This explicit queue is for manual poison message handling if needed
+resource "azurerm_servicebus_queue" "ocr_jobs_poison" {
+  name         = "ocr-jobs-poison"
+  namespace_id = azurerm_servicebus_namespace.main.id
+
+  # Poison queue configuration
+  max_size_in_megabytes = 1024
+  default_message_ttl   = "P7D" # 7 days for investigation
+  lock_duration         = "PT1M" # 1 minute for manual processing
+  
+  # No auto-forwarding from poison queue
+  dead_lettering_on_message_expiration = false
+}

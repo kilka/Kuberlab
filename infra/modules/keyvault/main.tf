@@ -53,6 +53,13 @@ resource "azurerm_key_vault_secret" "service_bus_queue" {
   depends_on   = [azurerm_role_assignment.current_user_admin]
 }
 
+resource "azurerm_key_vault_secret" "service_bus_poison_queue" {
+  name         = "service-bus-poison-queue"
+  value        = var.service_bus_poison_queue
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.current_user_admin]
+}
+
 resource "azurerm_key_vault_secret" "key_vault_name" {
   name         = "key-vault-name"
   value        = azurerm_key_vault.main.name
@@ -67,9 +74,24 @@ resource "azurerm_role_assignment" "current_user_admin" {
   principal_id         = data.azurerm_client_config.current.object_id
 }
 
-# Role assignment for managed identity
-resource "azurerm_role_assignment" "managed_identity_secrets_user" {
+# Role assignments for managed identities
+# API identity needs to read secrets
+resource "azurerm_role_assignment" "api_identity_secrets_user" {
   scope                = azurerm_key_vault.main.id
   role_definition_name = "Key Vault Secrets User"
-  principal_id         = var.managed_identity_principal_id
+  principal_id         = var.api_identity_principal_id
+}
+
+# Worker identity needs to read secrets
+resource "azurerm_role_assignment" "worker_identity_secrets_user" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = var.worker_identity_principal_id
+}
+
+# GitHub identity needs to manage secrets for CI/CD
+resource "azurerm_role_assignment" "github_identity_secrets_officer" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = var.github_identity_principal_id
 }

@@ -4,7 +4,7 @@ metadata:
   name: ocr-api
   namespace: ocr
   annotations:
-    azure.workload.identity/client-id: $(WORKLOAD_IDENTITY_CLIENT_ID)
+    azure.workload.identity/client-id: $(API_IDENTITY_CLIENT_ID)
     azure.workload.identity/use: "true"
   labels:
     app: ocr-api
