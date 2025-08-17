@@ -14,7 +14,7 @@ spec:
   - type: azure-servicebus
     metadata:
       queueName: ocr-jobs
-      namespace: ${SERVICEBUS_NAMESPACE}
+      namespace: ${SERVICE_BUS_NAMESPACE}
       messageCount: "5"
     authenticationRef:
       name: ocr-worker-trigger-auth

@@ -47,6 +47,7 @@ resource "kubernetes_secret" "cluster_config" {
     GITHUB_IDENTITY_CLIENT_ID     = module.identity.github_client_id
     TENANT_ID                     = local.tenant_id
     KUBELET_IDENTITY_CLIENT_ID    = module.aks.kubelet_identity.client_id
+    ACR_NAME                      = module.acr.name
     # Legacy for backward compatibility
     WORKLOAD_IDENTITY_CLIENT_ID   = module.identity.github_client_id
   }
@@ -82,6 +83,7 @@ resource "kubernetes_secret" "cluster_config_ocr" {
     GITHUB_IDENTITY_CLIENT_ID     = module.identity.github_client_id
     TENANT_ID                     = local.tenant_id
     KUBELET_IDENTITY_CLIENT_ID    = module.aks.kubelet_identity.client_id
+    ACR_NAME                      = module.acr.name
     # Legacy for backward compatibility
     WORKLOAD_IDENTITY_CLIENT_ID   = module.identity.github_client_id
   }
