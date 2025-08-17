@@ -10,10 +10,10 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  targetNamespace: ocr
+  # Removed targetNamespace to allow resources to use their own namespaces
   # Variable substitution from the handoff Secret
   postBuild:
     substituteFrom:
     - kind: Secret
       name: cluster-config
-      # Secret is in ocr namespace, not flux-system
+      # Secret is in flux-system namespace (same as this Kustomization)
