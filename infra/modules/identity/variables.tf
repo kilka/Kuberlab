@@ -33,3 +33,8 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "aks_oidc_issuer_url" {
+  description = "AKS OIDC issuer URL for workload identity"
+  type        = string
+}

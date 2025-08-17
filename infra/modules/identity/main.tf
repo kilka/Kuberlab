@@ -83,3 +83,24 @@ resource "azurerm_role_assignment" "worker_storage_table_contributor" {
 
 # Key Vault Secrets User role (handled in keyvault module)
 # This avoids circular dependency issues
+
+# ===== Federated Identity Credentials for Kubernetes Service Accounts =====
+# API service account
+resource "azurerm_federated_identity_credential" "api_k8s" {
+  name                = "k8s-ocr-api"
+  resource_group_name = var.resource_group_name
+  parent_id           = azurerm_user_assigned_identity.api.id
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = var.aks_oidc_issuer_url
+  subject             = "system:serviceaccount:ocr:ocr-api"
+}
+
+# Worker service account
+resource "azurerm_federated_identity_credential" "worker_k8s" {
+  name                = "k8s-ocr-worker"
+  resource_group_name = var.resource_group_name
+  parent_id           = azurerm_user_assigned_identity.worker.id
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = var.aks_oidc_issuer_url
+  subject             = "system:serviceaccount:ocr:ocr-worker"
+}

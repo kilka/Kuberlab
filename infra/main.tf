@@ -129,7 +129,12 @@ module "identity" {
   github_repository        = var.github_repository
   service_bus_namespace_id = module.servicebus.namespace_id
   storage_account_id       = module.storage.account_id
+  aks_oidc_issuer_url      = module.aks.oidc_issuer_url
   tags                     = local.common_tags
+  
+  depends_on = [
+    module.aks
+  ]
 }
 
 # Key Vault
