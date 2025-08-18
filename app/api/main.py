@@ -7,7 +7,7 @@ from typing import Optional
 
 from azure.servicebus import ServiceBusClient, ServiceBusMessage
 from azure.storage.blob import BlobServiceClient
-from azure.storage.table import TableServiceClient, TableEntity
+from azure.data.tables import TableServiceClient, TableEntity
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from prometheus_client import Counter, Histogram, generate_latest

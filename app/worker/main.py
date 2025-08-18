@@ -11,7 +11,7 @@ import pytesseract
 from PIL import Image
 from azure.servicebus import ServiceBusClient, ServiceBusReceiver, ServiceBusReceivedMessage
 from azure.storage.blob import BlobServiceClient
-from azure.storage.table import TableServiceClient, TableEntity
+from azure.data.tables import TableServiceClient, TableEntity
 from prometheus_client import Counter, Histogram, start_http_server, generate_latest
 import io
 
