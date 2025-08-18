@@ -20,7 +20,7 @@ spec:
     podIdentity:
       azureWorkload:
         enabled: true
-        clientId: ${WORKLOAD_IDENTITY_CLIENT_ID}
+        clientId: ${WORKER_IDENTITY_CLIENT_ID}
         tenantId: ${TENANT_ID}
     resources:
       operator:

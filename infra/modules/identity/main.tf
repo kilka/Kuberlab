@@ -105,6 +105,16 @@ resource "azurerm_federated_identity_credential" "worker_k8s" {
   subject             = "system:serviceaccount:ocr:ocr-worker"
 }
 
+# KEDA operator service account (needs worker identity for Service Bus access)
+resource "azurerm_federated_identity_credential" "keda_operator_k8s" {
+  name                = "k8s-keda-operator"
+  resource_group_name = var.resource_group_name
+  parent_id           = azurerm_user_assigned_identity.worker.id
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = var.aks_oidc_issuer_url
+  subject             = "system:serviceaccount:keda:keda-operator"
+}
+
 # ===== ALB Controller Identity =====
 # Managed Identity for ALB Controller
 resource "azurerm_user_assigned_identity" "alb" {
