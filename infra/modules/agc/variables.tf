@@ -28,3 +28,8 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "alb_identity_principal_id" {
+  description = "Principal ID of the ALB managed identity"
+  type        = string
+}

@@ -25,3 +25,16 @@ resource "azurerm_application_load_balancer_subnet_association" "main" {
 
   tags = var.tags
 }
+
+# Role assignments for ALB Controller to manage AGC resources
+resource "azurerm_role_assignment" "alb_agc_contributor" {
+  scope                = azurerm_application_load_balancer.main.id
+  role_definition_name = "Contributor"
+  principal_id         = var.alb_identity_principal_id
+}
+
+resource "azurerm_role_assignment" "alb_subnet_reader" {
+  scope                = var.subnet_id
+  role_definition_name = "Reader"
+  principal_id         = var.alb_identity_principal_id
+}

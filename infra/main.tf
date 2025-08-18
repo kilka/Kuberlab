@@ -99,15 +99,17 @@ resource "azurerm_role_assignment" "alb_network_contributor" {
 module "agc" {
   source = "./modules/agc"
 
-  gateway_name        = "${local.name_prefix}-agc-${var.sequence}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  name_prefix         = local.name_prefix
-  subnet_id           = module.network.agc_subnet_id
-  tags                = local.common_tags
+  gateway_name              = "${local.name_prefix}-agc-${var.sequence}"
+  resource_group_name       = azurerm_resource_group.main.name
+  location                  = azurerm_resource_group.main.location
+  name_prefix               = local.name_prefix
+  subnet_id                 = module.network.agc_subnet_id
+  alb_identity_principal_id = module.identity.alb_principal_id
+  tags                      = local.common_tags
   
   depends_on = [
-    module.network
+    module.network,
+    module.identity
   ]
 }
 
