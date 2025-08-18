@@ -24,12 +24,20 @@ help:
 	@echo "$(GREEN)Commands:$(NC)"
 	@echo "  make init           - Initialize Terraform"
 	@echo "  make plan           - Review what will be created"
-	@echo "  make deploy         - Create everything in Azure"
+	@echo "  make deploy         - Create everything in Azure (includes image check)"
 	@echo "  make destroy        - Remove everything (fast, skips Flux cleanup)"
 	@echo "  make destroy-slow   - Remove everything (tries clean Flux removal first)"
 	@echo "  make destroy-nuclear - ☢️  Delete entire resource group (bypasses Terraform)"
+	@echo ""
+	@echo "$(GREEN)Application:$(NC)"
+	@echo "  make check-images   - Check if Docker images exist in ACR"
+	@echo "  make build-images   - Build and push missing Docker images"
+	@echo "  make force-images   - Force rebuild all Docker images"
+	@echo ""
+	@echo "$(GREEN)Operations:$(NC)"
 	@echo "  make connect        - Connect to AKS cluster"
 	@echo "  make flux-status    - Check Flux GitOps sync status"
+	@echo "  make pod-status     - Check application pod status"
 	@echo "  make cost           - Check current costs"
 	@echo ""
 	@echo "$(YELLOW)⚠ Costs: ~$$0.70/hour when deployed$(NC)"
@@ -59,10 +67,29 @@ plan: init
 deploy: plan
 	@echo "$(YELLOW)This will create ~40 Azure resources (~$$0.70/hour)$(NC)"
 	@read -p "Deploy? (yes/no): " confirm && [ "$$confirm" = "yes" ]
+	@echo "$(BLUE)Creating Azure infrastructure...$(NC)"
 	@cd $(TF_DIR) && terraform apply tfplan
-	@echo "$(GREEN)✓ Deployed!$(NC)"
+	@echo "$(GREEN)✓ Infrastructure deployed!$(NC)"
 	@echo ""
-	@echo "$(YELLOW)Connect with: make connect$(NC)"
+	@echo "$(BLUE)Checking Docker images...$(NC)"
+	@if ! ./scripts/manage-images.sh check 2>/dev/null; then \
+		echo "$(YELLOW)Building missing Docker images...$(NC)"; \
+		./scripts/manage-images.sh build || { \
+			echo "$(RED)❌ Failed to build images. Run 'make build-images' manually$(NC)"; \
+			exit 1; \
+		}; \
+	fi
+	@echo ""
+	@echo "$(BLUE)Running post-deploy verification...$(NC)"
+	@./scripts/post-deploy.sh || true
+	@echo ""
+	@echo "$(GREEN)✅ Deployment complete!$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Next steps:$(NC)"
+	@echo "  make connect       - Connect kubectl to cluster"
+	@echo "  make pod-status    - Check application pods"
+	@echo "  make flux-status   - Check GitOps sync"
+	@echo ""
 	@echo "$(RED)Remember: make destroy when done!$(NC)"
 
 destroy:
@@ -92,6 +119,29 @@ flux-status:
 	@kubectl get kustomizations -n flux-system || echo "Flux not yet installed"
 	@kubectl get helmreleases -A 2>/dev/null || true
 	@kubectl get pods -n flux-system 2>/dev/null || true
+
+check-images:
+	@./scripts/manage-images.sh check
+
+build-images:
+	@echo "$(BLUE)Building and pushing Docker images to ACR...$(NC)"
+	@./scripts/manage-images.sh build
+
+force-images:
+	@echo "$(BLUE)Force rebuilding all Docker images...$(NC)"
+	@./scripts/manage-images.sh force-build
+
+pod-status:
+	@echo "$(BLUE)Checking application pod status...$(NC)"
+	@echo ""
+	@echo "$(YELLOW)OCR API Pods:$(NC)"
+	@kubectl get pods -n ocr -l app=ocr-api 2>/dev/null || echo "No API pods found"
+	@echo ""
+	@echo "$(YELLOW)OCR Worker Pods:$(NC)"
+	@kubectl get pods -n ocr -l app=ocr-worker 2>/dev/null || echo "No worker pods found"
+	@echo ""
+	@echo "$(YELLOW)All Pods in OCR namespace:$(NC)"
+	@kubectl get pods -n ocr 2>/dev/null || echo "OCR namespace not found"
 
 cost:
 	@echo "$(BLUE)Checking costs...$(NC)"
@@ -154,4 +204,4 @@ clean:
 	@rm -rf $(TF_DIR)/.terraform $(TF_DIR)/tfplan $(TF_DIR)/.terraform.lock.hcl
 	@echo "$(GREEN)✓ Cleaned$(NC)"
 
-.PHONY: help init plan deploy destroy destroy-slow destroy-nuclear connect flux-status cost outputs clean
+.PHONY: help init plan deploy destroy destroy-slow destroy-nuclear connect flux-status check-images build-images force-images pod-status cost outputs clean
