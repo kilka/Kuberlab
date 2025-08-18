@@ -64,7 +64,8 @@ resource "kubernetes_secret" "cluster_config" {
     module.keyvault,
     module.storage,
     module.servicebus,
-    module.identity
+    module.identity,
+    null_resource.build_docker_images  # Ensure images are ready
   ]
 }
 

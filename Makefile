@@ -67,18 +67,9 @@ plan: init
 deploy: plan
 	@echo "$(YELLOW)This will create ~40 Azure resources (~$$0.70/hour)$(NC)"
 	@read -p "Deploy? (yes/no): " confirm && [ "$$confirm" = "yes" ]
-	@echo "$(BLUE)Creating Azure infrastructure...$(NC)"
+	@echo "$(BLUE)Creating Azure infrastructure and building Docker images...$(NC)"
 	@cd $(TF_DIR) && terraform apply tfplan
-	@echo "$(GREEN)✓ Infrastructure deployed!$(NC)"
-	@echo ""
-	@echo "$(BLUE)Checking Docker images...$(NC)"
-	@if ! ./scripts/manage-images.sh check 2>/dev/null; then \
-		echo "$(YELLOW)Building missing Docker images...$(NC)"; \
-		./scripts/manage-images.sh build || { \
-			echo "$(RED)❌ Failed to build images. Run 'make build-images' manually$(NC)"; \
-			exit 1; \
-		}; \
-	fi
+	@echo "$(GREEN)✓ Infrastructure deployed and images built!$(NC)"
 	@echo ""
 	@echo "$(BLUE)Running post-deploy verification...$(NC)"
 	@./scripts/post-deploy.sh || true

@@ -73,7 +73,8 @@ resource "azurerm_kubernetes_flux_configuration" "main" {
   
   depends_on = [
     azurerm_kubernetes_cluster_extension.flux,
-    module.aks
+    module.aks,
+    null_resource.build_docker_images  # Ensure images are ready before Flux deploys apps
   ]
   
   timeouts {

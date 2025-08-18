@@ -15,6 +15,7 @@ IMAGE_VERSION="v1.0.2"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 APP_DIR="$PROJECT_ROOT/app"
+KUSTOMIZE_FILE="$PROJECT_ROOT/clusters/demo/apps/kustomization.yaml"
 
 # Function to print colored output
 print_color() {
@@ -94,6 +95,32 @@ build_and_push_image() {
     fi
 }
 
+# Function to update kustomization.yaml with new image tags
+update_kustomization() {
+    local version=$1
+    local acr_name=$2
+    
+    print_color "$BLUE" "📝 Updating kustomization.yaml with version $version..."
+    
+    # Update the kustomization.yaml file with new image tags
+    if [ -f "$KUSTOMIZE_FILE" ]; then
+        # Update ocr-api newTag
+        sed -i.bak "s|\(- name: ocr-api.*newTag:\) .*|\1 $version|" "$KUSTOMIZE_FILE"
+        # Update ocr-worker newTag
+        sed -i.bak "s|\(- name: ocr-worker.*newTag:\) .*|\1 $version|" "$KUSTOMIZE_FILE"
+        # Update ACR names if needed (in case ACR changes)
+        sed -i.bak "s|\(- name: ocr-api.*newName:\) .*|\1 ${acr_name}.azurecr.io/ocr-api|" "$KUSTOMIZE_FILE"
+        sed -i.bak "s|\(- name: ocr-worker.*newName:\) .*|\1 ${acr_name}.azurecr.io/ocr-worker|" "$KUSTOMIZE_FILE"
+        # Remove backup files
+        rm -f "${KUSTOMIZE_FILE}.bak"
+        
+        print_color "$GREEN" "✓ Updated kustomization.yaml"
+        print_color "$YELLOW" "  Remember to commit the changes to Git for Flux to deploy"
+    else
+        print_color "$YELLOW" "⚠ kustomization.yaml not found at $KUSTOMIZE_FILE"
+    fi
+}
+
 # Main execution based on command
 case "${1:-check}" in
     check)
@@ -161,6 +188,9 @@ case "${1:-check}" in
             print_color "$BLUE" "ℹ️  ocr-worker:$IMAGE_VERSION already exists, skipping"
         fi
         
+        # Update kustomization.yaml with new version
+        update_kustomization "$IMAGE_VERSION" "$ACR_NAME"
+        
         print_color "$GREEN" "✅ Image build complete!"
         ;;
         
@@ -173,6 +203,9 @@ case "${1:-check}" in
         
         build_and_push_image "$ACR_NAME" "ocr-api" "$IMAGE_VERSION" "$APP_DIR/api"
         build_and_push_image "$ACR_NAME" "ocr-worker" "$IMAGE_VERSION" "$APP_DIR/worker"
+        
+        # Update kustomization.yaml with new version
+        update_kustomization "$IMAGE_VERSION" "$ACR_NAME"
         
         print_color "$GREEN" "✅ Force build complete!"
         ;;

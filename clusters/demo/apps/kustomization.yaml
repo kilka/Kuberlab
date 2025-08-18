@@ -6,3 +6,12 @@ resources:
   - ../../../apps/base
   # Flux Kustomization for variable substitution
   - kustomization-apps.yaml
+
+# Image transformations - replaces simple image names with full ACR URLs
+images:
+- name: ocr-api
+  newName: devocracr001.azurecr.io/ocr-api
+  newTag: v1.0.2
+- name: ocr-worker
+  newName: devocracr001.azurecr.io/ocr-worker
+  newTag: v1.0.2
