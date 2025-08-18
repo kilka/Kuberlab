@@ -51,6 +51,14 @@ async def startup_event():
         if STORAGE_CONNECTION_STRING:
             blob_service_client = BlobServiceClient.from_connection_string(STORAGE_CONNECTION_STRING)
             table_service_client = TableServiceClient.from_connection_string(STORAGE_CONNECTION_STRING)
+            
+            # Ensure table exists
+            try:
+                table_client = table_service_client.get_table_client(TABLE_NAME)
+                table_client.create_table()
+            except:
+                pass  # Table already exists
+            
             logger.info("Storage clients initialized")
         else:
             logger.warning("STORAGE_CONNECTION_STRING not set")
@@ -118,7 +126,8 @@ async def create_ocr_job(file: UploadFile = File(...)):
         
         if table_service_client:
             try:
-                entity = table_service_client.get_entity(TABLE_NAME, partition_key="jobs", row_key=job_id)
+                table_client = table_service_client.get_table_client(TABLE_NAME)
+                entity = table_client.get_entity(partition_key="jobs", row_key=job_id)
                 if entity:
                     logger.info(f"Job {job_id} already exists, returning existing job")
                     REQUEST_COUNT.labels(method="POST", endpoint="/ocr", status="200").inc()
@@ -169,6 +178,7 @@ async def create_ocr_job(file: UploadFile = File(...)):
         
         if table_service_client:
             try:
+                table_client = table_service_client.get_table_client(TABLE_NAME)
                 entity = TableEntity()
                 entity["PartitionKey"] = "jobs"
                 entity["RowKey"] = job_id
@@ -178,7 +188,7 @@ async def create_ocr_job(file: UploadFile = File(...)):
                 entity["created_at"] = datetime.utcnow().isoformat()
                 entity["file_size"] = len(content)
                 
-                table_service_client.create_entity(TABLE_NAME, entity)
+                table_client.create_entity(entity)
                 logger.info(f"Created table entity for job: {job_id}")
             except Exception as e:
                 logger.error(f"Failed to create table entity: {e}")
@@ -214,7 +224,8 @@ async def get_job_status(job_id: str):
         raise HTTPException(status_code=503, detail="Storage service unavailable")
     
     try:
-        entity = table_service_client.get_entity(TABLE_NAME, partition_key="jobs", row_key=job_id)
+        table_client = table_service_client.get_table_client(TABLE_NAME)
+        entity = table_client.get_entity(partition_key="jobs", row_key=job_id)
         REQUEST_COUNT.labels(method="GET", endpoint="/ocr/{job_id}", status="200").inc()
         
         response = {
@@ -248,7 +259,8 @@ async def get_job_result(job_id: str):
         raise HTTPException(status_code=503, detail="Storage service unavailable")
     
     try:
-        entity = table_service_client.get_entity(TABLE_NAME, partition_key="jobs", row_key=job_id)
+        table_client = table_service_client.get_table_client(TABLE_NAME)
+        entity = table_client.get_entity(partition_key="jobs", row_key=job_id)
         
         if entity.get("status") != "completed":
             REQUEST_COUNT.labels(method="GET", endpoint="/ocr/{job_id}/result", status="400").inc()

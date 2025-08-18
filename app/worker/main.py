@@ -81,7 +81,8 @@ def initialize_clients():
             
             # Ensure table exists
             try:
-                table_service_client.create_table(TABLE_NAME)
+                table_client = table_service_client.get_table_client(TABLE_NAME)
+                table_client.create_table()
             except:
                 pass  # Table already exists
             
@@ -99,7 +100,8 @@ def update_job_status(job_id: str, status: str, error: Optional[str] = None, res
         return
     
     try:
-        entity = table_service_client.get_entity(TABLE_NAME, partition_key="jobs", row_key=job_id)
+        table_client = table_service_client.get_table_client(TABLE_NAME)
+        entity = table_client.get_entity(partition_key="jobs", row_key=job_id)
         entity["status"] = status
         entity["updated_at"] = datetime.utcnow().isoformat()
         
@@ -112,7 +114,7 @@ def update_job_status(job_id: str, status: str, error: Optional[str] = None, res
         if result_blob:
             entity["result_blob"] = result_blob
         
-        table_service_client.update_entity(TABLE_NAME, entity, mode="merge")
+        table_client.update_entity(entity, mode="merge")
         logger.info(f"Updated job {job_id} status to {status}")
     except Exception as e:
         logger.error(f"Failed to update job status: {e}")
