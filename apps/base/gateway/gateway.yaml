@@ -5,9 +5,8 @@ metadata:
   namespace: ocr
   annotations:
     alb.networking.azure.io/alb-id: "/subscriptions/${AZURE_SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.ServiceNetworking/trafficControllers/${AGC_NAME}"
-    alb.networking.azure.io/alb-frontend: "dev-ocr-frontend"
 spec:
-  gatewayClassName: alb-gatewayclass
+  gatewayClassName: azure-alb-external
   listeners:
   - name: http
     port: 80
