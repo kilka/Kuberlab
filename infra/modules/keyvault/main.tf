@@ -110,3 +110,7 @@ resource "azurerm_role_assignment" "github_identity_secrets_officer" {
   role_definition_name = "Key Vault Secrets Officer"
   principal_id         = var.github_identity_principal_id
 }
+
+# Note: Purging of soft-deleted Key Vaults is handled by the cleanup-orphans.sh script
+# which runs after terraform destroy completes. The destroy provisioner approach
+# doesn't work because it runs before the Key Vault is actually soft-deleted.

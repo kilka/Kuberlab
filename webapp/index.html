@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Testing Web App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .status {
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+            background: #fafafa;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #f0f0ff;
+        }
+
+        .upload-area h3 {
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .preview-section {
+            display: none;
+            margin-bottom: 30px;
+        }
+
+        .preview-section.active {
+            display: block;
+        }
+
+        .preview-container {
+            display: flex;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .image-preview {
+            flex: 1;
+        }
+
+        .image-preview img {
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .result-section {
+            flex: 1;
+        }
+
+        .result-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 200px;
+            position: relative;
+        }
+
+        .result-box h4 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .result-text {
+            color: #555;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 150px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .job-info {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            color: #004085;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            font-family: monospace;
+        }
+
+        @media (max-width: 768px) {
+            .preview-container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 OCR Testing</h1>
+        <p class="subtitle">Upload an image to extract text using Azure Kubernetes Service</p>
+        
+        <div id="status" class="status disconnected">
+            Checking API connection...
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <h3>📤 Drop image here or click to upload</h3>
+            <p style="color: #999; margin-bottom: 20px;">Supports JPEG and PNG (max 10MB)</p>
+            <input type="file" id="fileInput" class="file-input" accept="image/jpeg,image/jpg,image/png">
+            <button class="btn" onclick="document.getElementById('fileInput').click()">Choose Image</button>
+        </div>
+
+        <div class="preview-section" id="previewSection">
+            <div class="preview-container">
+                <div class="image-preview">
+                    <img id="imagePreview" alt="Uploaded image">
+                </div>
+                <div class="result-section">
+                    <div id="jobInfo" class="job-info" style="display: none;"></div>
+                    <div class="result-box">
+                        <h4>Extracted Text</h4>
+                        <div id="resultContent">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="errorContainer"></div>
+    </div>
+
+    <script>
+        // Check API connection through proxy
+        async function checkAPIConnection() {
+            const statusEl = document.getElementById('status');
+            try {
+                const response = await fetch('/api/health');
+                if (response.ok) {
+                    updateStatus('connected', 'Connected to OCR API via proxy');
+                } else {
+                    updateStatus('disconnected', 'API is not responding');
+                }
+            } catch (error) {
+                updateStatus('disconnected', 'Cannot connect to API');
+            }
+        }
+
+        function updateStatus(type, message) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${type}`;
+            statusEl.textContent = message;
+        }
+
+        // File upload handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            // Validate file type
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+            if (!validTypes.includes(file.type)) {
+                showError('Please upload a JPEG or PNG image');
+                return;
+            }
+
+            // Validate file size (10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                showError('File size must be less than 10MB');
+                return;
+            }
+
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('imagePreview').src = e.target.result;
+                document.getElementById('previewSection').classList.add('active');
+            };
+            reader.readAsDataURL(file);
+
+            // Upload file
+            uploadFile(file);
+        }
+
+        async function uploadFile(file) {
+            const resultContent = document.getElementById('resultContent');
+            const jobInfo = document.getElementById('jobInfo');
+            const errorContainer = document.getElementById('errorContainer');
+            
+            // Clear previous results
+            errorContainer.innerHTML = '';
+            jobInfo.style.display = 'none';
+            resultContent.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/api/ocr', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Show job ID
+                    jobInfo.textContent = `Job ID: ${data.job_id}`;
+                    jobInfo.style.display = 'block';
+
+                    // Poll for results
+                    pollForResults(data.job_id);
+                } else {
+                    showError(data.detail || 'Failed to process image');
+                    resultContent.innerHTML = '<p style="color: #999;">Processing failed</p>';
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+                resultContent.innerHTML = '<p style="color: #999;">Upload failed</p>';
+            }
+        }
+
+        async function pollForResults(jobId) {
+            const resultContent = document.getElementById('resultContent');
+            const maxAttempts = 30; // 30 seconds max
+            let attempts = 0;
+
+            const pollInterval = setInterval(async () => {
+                attempts++;
+                
+                try {
+                    const response = await fetch(`/api/ocr/${jobId}`);
+                    const data = await response.json();
+
+                    if (data.status === 'completed') {
+                        clearInterval(pollInterval);
+                        // Fetch the actual result
+                        fetchResult(jobId);
+                    } else if (data.status === 'failed') {
+                        clearInterval(pollInterval);
+                        showError('OCR processing failed: ' + (data.error || 'Unknown error'));
+                        resultContent.innerHTML = '<p style="color: #999;">Processing failed</p>';
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval);
+                        showError('Timeout waiting for OCR results');
+                        resultContent.innerHTML = '<p style="color: #999;">Processing timeout</p>';
+                    }
+                    // Continue polling if status is 'pending' or 'processing'
+                } catch (error) {
+                    // Continue polling on error
+                    if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval);
+                        showError('Timeout waiting for OCR results. The job may still be processing.');
+                        resultContent.innerHTML = '<p style="color: #999;">Processing timeout</p>';
+                    }
+                }
+            }, 1000);
+        }
+
+        async function fetchResult(jobId) {
+            const resultContent = document.getElementById('resultContent');
+            try {
+                const response = await fetch(`/api/ocr/${jobId}/result`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayResult(data.text || 'No text detected in the image');
+                } else {
+                    showError('Failed to fetch result: ' + (data.detail || 'Unknown error'));
+                    resultContent.innerHTML = '<p style="color: #999;">Failed to get result</p>';
+                }
+            } catch (error) {
+                showError('Error fetching result: ' + error.message);
+                resultContent.innerHTML = '<p style="color: #999;">Failed to get result</p>';
+            }
+        }
+
+        function displayResult(text) {
+            const resultContent = document.getElementById('resultContent');
+            resultContent.innerHTML = `<div class="result-text">${escapeHtml(text)}</div>`;
+        }
+
+        function showError(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.innerHTML = `<div class="error">⚠️ ${message}</div>`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', checkAPIConnection);
+    </script>
+</body>
+</html>

@@ -82,6 +82,12 @@ if [ -n "$GATEWAY_ADDRESS" ]; then
     echo "  OCR:      http://$GATEWAY_ADDRESS/ocr (POST with image file)"
     echo ""
     
+    # Save API URL for web app
+    mkdir -p "$PROJECT_ROOT/webapp"
+    echo "{\"apiUrl\": \"http://$GATEWAY_ADDRESS\"}" > "$PROJECT_ROOT/webapp/api-config.json"
+    echo "💾 Saved API URL to webapp/api-config.json"
+    echo ""
+    
     # Test health endpoint
     echo "🧪 Testing health endpoint..."
     if curl -s -f "http://$GATEWAY_ADDRESS/health" > /dev/null 2>&1; then

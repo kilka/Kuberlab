@@ -25,14 +25,17 @@ help:
 	@echo "  make init           - Initialize Terraform"
 	@echo "  make plan           - Review what will be created"
 	@echo "  make deploy         - Create everything in Azure (includes image check)"
-	@echo "  make destroy        - Remove everything (fast, skips Flux cleanup)"
+	@echo "  make destroy        - Remove everything (fast, handles subscription resources)"
 	@echo "  make destroy-slow   - Remove everything (tries clean Flux removal first)"
 	@echo "  make destroy-nuclear - ☢️  Delete entire resource group (bypasses Terraform)"
+	@echo "  make cleanup-orphans - Clean up any orphaned Azure resources"
+	@echo "  make cleanup-keyvault - Clean up soft-deleted Key Vaults"
 	@echo ""
 	@echo "$(GREEN)Application:$(NC)"
 	@echo "  make check-images   - Check if Docker images exist in ACR"
 	@echo "  make build-images   - Build and push missing Docker images"
 	@echo "  make force-images   - Force rebuild all Docker images"
+	@echo "  make webapp         - 🌐 Launch OCR testing web app"
 	@echo ""
 	@echo "$(GREEN)Operations:$(NC)"
 	@echo "  make connect        - Connect to AKS cluster"
@@ -67,6 +70,8 @@ plan: init
 deploy: plan
 	@echo "$(YELLOW)This will create ~40 Azure resources (~$$0.70/hour)$(NC)"
 	@read -p "Deploy? (yes/no): " confirm && [ "$$confirm" = "yes" ]
+	@echo "$(BLUE)Checking for orphaned resources from previous deployments...$(NC)"
+	@./scripts/cleanup-orphans.sh || true
 	@echo "$(BLUE)Creating Azure infrastructure and building Docker images...$(NC)"
 	@cd $(TF_DIR) && terraform apply tfplan
 	@echo "$(GREEN)✓ Infrastructure deployed and images built!$(NC)"
@@ -87,15 +92,19 @@ destroy:
 	@echo "$(RED)This will DELETE everything!$(NC)"
 	@read -p "Type 'destroy' to confirm: " confirm && [ "$$confirm" = "destroy" ]
 	@echo "$(BLUE)Optimizing destroy process...$(NC)"
-	@echo "  Removing all resources except resource group from state..."
-	@echo "  (Resource group deletion will cascade-delete everything in Azure)"
+	@echo "  Keeping subscription-level resources in state for proper cleanup..."
+	@echo "  (Resource group deletion will cascade-delete everything inside)"
 	@cd $(TF_DIR) && \
-		for resource in $$(terraform state list 2>/dev/null | grep -v "^azurerm_resource_group\." | grep -v "^data\." || echo ""); do \
+		for resource in $$(terraform state list 2>/dev/null | grep -v "^azurerm_resource_group\." | grep -v "^azurerm_key_vault\." | grep -v "^azurerm_role_assignment\..*_keyvault_" | grep -v "^azurerm_consumption_budget_subscription\." | grep -v "^azurerm_consumption_budget_resource_group\." | grep -v "^data\." || echo ""); do \
 			echo "  Removing $$resource from state..." && \
 			terraform state rm "$$resource" 2>/dev/null || true; \
 		done
-	@echo "$(BLUE)Destroying resource group (this deletes everything inside)...$(NC)"
+	@echo "$(BLUE)Destroying resource group and subscription budget...$(NC)"
 	@cd $(TF_DIR) && terraform destroy -auto-approve -parallelism=30
+	@echo "$(BLUE)Waiting for Azure to process deletions...$(NC)"
+	@sleep 10
+	@echo "$(BLUE)Running cleanup for soft-deleted resources...$(NC)"
+	@./scripts/cleanup-orphans.sh || true
 	@echo "$(GREEN)✓ Everything removed$(NC)"
 
 connect:
@@ -179,11 +188,15 @@ destroy-slow:
 	@echo "$(GREEN)✓ Everything removed$(NC)"
 
 destroy-nuclear:
-	@echo "$(RED)☢️  NUCLEAR OPTION - Deleting entire resource group!$(NC)"
+	@echo "$(RED)☢️  NUCLEAR OPTION - Deleting entire resource group and budgets!$(NC)"
 	@read -p "Type 'NUCLEAR' to confirm: " confirm && [ "$$confirm" = "NUCLEAR" ]
 	@cd $(TF_DIR) && \
 		RG=$$(terraform output -raw resource_group_name 2>/dev/null || echo "") && \
+		SUBSCRIPTION=$$(az account show --query id -o tsv) && \
 		if [ -n "$$RG" ]; then \
+			echo "$(YELLOW)Deleting budgets...$(NC)" && \
+			az consumption budget delete --budget-name "dev-ocr-budget-monthly" 2>/dev/null || true && \
+			az consumption budget delete --budget-name "dev-ocr-budget-rg" --resource-group "$$RG" 2>/dev/null || true && \
 			echo "$(YELLOW)Deleting resource group $$RG...$(NC)" && \
 			az group delete --name $$RG --yes --no-wait && \
 			echo "$(YELLOW)Clearing Terraform state...$(NC)" && \
@@ -193,8 +206,27 @@ destroy-nuclear:
 			echo "$(RED)Could not find resource group$(NC)"; \
 		fi
 
+cleanup-orphans:
+	@echo "$(BLUE)Checking for orphaned Azure resources...$(NC)"
+	@./scripts/cleanup-orphans.sh
+
+cleanup-keyvault:
+	@echo "$(BLUE)Checking for soft-deleted Key Vaults...$(NC)"
+	@./scripts/cleanup-keyvault.sh
+
+webapp:
+	@if [ ! -f webapp/api-config.json ]; then \
+		echo "$(RED)ERROR: webapp/api-config.json not found$(NC)"; \
+		echo "Run 'make deploy' first to set up the API"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Starting OCR testing web app with proxy...$(NC)"
+	@echo ""
+	@sleep 1 && (open http://localhost:8080 2>/dev/null || xdg-open http://localhost:8080 2>/dev/null || echo "") & \
+		python3 webapp/proxy_server.py
+
 clean:
 	@rm -rf $(TF_DIR)/.terraform $(TF_DIR)/tfplan $(TF_DIR)/.terraform.lock.hcl
 	@echo "$(GREEN)✓ Cleaned$(NC)"
 
-.PHONY: help init plan deploy destroy destroy-slow destroy-nuclear connect flux-status check-images build-images force-images pod-status cost outputs clean
+.PHONY: help init plan deploy destroy destroy-slow destroy-nuclear cleanup-orphans cleanup-keyvault connect flux-status check-images build-images force-images pod-status cost outputs webapp clean
