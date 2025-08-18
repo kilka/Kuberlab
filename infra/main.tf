@@ -79,6 +79,22 @@ resource "azurerm_role_assignment" "github_acr_push" {
   skip_service_principal_aad_check = true
 }
 
+# Role assignment for ALB Controller - AppGw for Containers Configuration Manager on RG
+resource "azurerm_role_assignment" "alb_agc_manager" {
+  principal_id                     = module.aks.kubelet_identity.object_id
+  role_definition_id               = "/providers/Microsoft.Authorization/roleDefinitions/fbc52c3f-28ad-4303-a892-8a056630b8f1"
+  scope                            = azurerm_resource_group.main.id
+  skip_service_principal_aad_check = true
+}
+
+# Role assignment for ALB Controller - Network Contributor on AGC subnet
+resource "azurerm_role_assignment" "alb_network_contributor" {
+  principal_id                     = module.aks.kubelet_identity.object_id
+  role_definition_name             = "Network Contributor"
+  scope                            = module.network.agc_subnet_id
+  skip_service_principal_aad_check = true
+}
+
 # Application Gateway for Containers
 module "agc" {
   source = "./modules/agc"

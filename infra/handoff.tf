@@ -51,6 +51,7 @@ resource "kubernetes_secret" "cluster_config" {
     AZURE_SUBSCRIPTION_ID         = data.azurerm_client_config.current.subscription_id
     RESOURCE_GROUP                = azurerm_resource_group.main.name
     AGC_NAME                      = module.agc.gateway_name
+    AGC_FRONTEND_NAME             = "dev-ocr-frontend"
     # Legacy for backward compatibility
     WORKLOAD_IDENTITY_CLIENT_ID   = module.identity.github_client_id
   }
@@ -90,6 +91,7 @@ resource "kubernetes_secret" "cluster_config_ocr" {
     AZURE_SUBSCRIPTION_ID         = data.azurerm_client_config.current.subscription_id
     RESOURCE_GROUP                = azurerm_resource_group.main.name
     AGC_NAME                      = module.agc.gateway_name
+    AGC_FRONTEND_NAME             = "dev-ocr-frontend"
     # Legacy for backward compatibility
     WORKLOAD_IDENTITY_CLIENT_ID   = module.identity.github_client_id
   }

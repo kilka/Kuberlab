@@ -8,9 +8,12 @@ metadata:
 spec:
   gatewayClassName: azure-alb-external
   listeners:
-  - name: http
+  - name: http-listener
     port: 80
     protocol: HTTP
     allowedRoutes:
       namespaces:
         from: Same
+  addresses:
+  - type: alb.networking.azure.io/alb-frontend
+    value: ${AGC_FRONTEND_NAME}
