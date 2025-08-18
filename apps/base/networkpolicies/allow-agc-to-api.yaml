@@ -11,6 +11,10 @@ spec:
   - Ingress
   ingress:
   - from:
+    # Allow traffic from AGC subnet
+    - ipBlock:
+        cidr: 10.0.2.0/24
+    # Also allow from arc-system namespace (for health checks)
     - namespaceSelector:
         matchLabels:
           name: arc-system
