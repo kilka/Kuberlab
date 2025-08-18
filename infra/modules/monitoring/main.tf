@@ -24,40 +24,5 @@ resource "azurerm_log_analytics_solution" "container_insights" {
   tags = var.tags
 }
 
-# Data Collection Rule for Container Insights
-resource "azurerm_monitor_data_collection_rule" "container_insights" {
-  name                = "${var.name_prefix}-dcr-${var.sequence}"
-  resource_group_name = var.resource_group_name
-  location            = var.location
-  tags                = var.tags
-
-  destinations {
-    log_analytics {
-      workspace_resource_id = azurerm_log_analytics_workspace.main.id
-      name                  = "destination-log"
-    }
-  }
-
-  data_flow {
-    streams      = ["Microsoft-ContainerInsights-Group-Default"]
-    destinations = ["destination-log"]
-  }
-
-  data_sources {
-    extension {
-      streams        = ["Microsoft-ContainerInsights-Group-Default"]
-      extension_name = "ContainerInsights"
-      extension_json = jsonencode({
-        "dataCollectionSettings" = {
-          "interval"               = "1m"
-          "namespaceFilteringMode" = "Off"
-          "namespaces"             = ["kube-system", "gatekeeper-system", "azure-arc"]
-          "enableContainerLogV2"   = true
-        }
-      })
-      name = "ContainerInsightsExtension"
-    }
-  }
-
-  description = "Data Collection Rule for Container Insights"
-}
+# Data Collection Rule is automatically created by AKS when oms_agent is configured
+# No need to manually create a DCR for Container Insights

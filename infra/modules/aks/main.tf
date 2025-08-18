@@ -86,6 +86,12 @@ resource "azurerm_kubernetes_cluster" "main" {
   }
 
   tags = var.tags
+  
+  timeouts {
+    create = "60m"
+    update = "60m"
+    delete = "30m"  # Fail fast if stuck during deletion
+  }
 }
 
 # User Node Pool for application workloads
@@ -114,6 +120,12 @@ resource "azurerm_kubernetes_cluster_node_pool" "user" {
   # No taints - allow all workloads to schedule
 
   tags = var.tags
+  
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "20m"  # Fail fast if stuck during deletion
+  }
 }
 
 # Role assignment for AKS to pull from ACR will be handled in main.tf

@@ -95,13 +95,15 @@ deploy: plan
 destroy:
 	@echo "$(RED)This will DELETE everything!$(NC)"
 	@read -p "Type 'destroy' to confirm: " confirm && [ "$$confirm" = "destroy" ]
-	@echo "$(BLUE)Removing Flux/K8s resources from state (will be destroyed with cluster)...$(NC)"
+	@echo "$(BLUE)Optimizing destroy process...$(NC)"
+	@echo "  Removing all resources except resource group from state..."
+	@echo "  (Resource group deletion will cascade-delete everything in Azure)"
 	@cd $(TF_DIR) && \
-		for resource in $$(terraform state list 2>/dev/null | grep -E "(flux|kubernetes_namespace|kubernetes_secret\.cluster_config)" || echo ""); do \
+		for resource in $$(terraform state list 2>/dev/null | grep -v "^azurerm_resource_group\." | grep -v "^data\." || echo ""); do \
 			echo "  Removing $$resource from state..." && \
 			terraform state rm "$$resource" 2>/dev/null || true; \
 		done
-	@echo "$(BLUE)Destroying infrastructure...$(NC)"
+	@echo "$(BLUE)Destroying resource group (this deletes everything inside)...$(NC)"
 	@cd $(TF_DIR) && terraform destroy -auto-approve -parallelism=30
 	@echo "$(GREEN)✓ Everything removed$(NC)"
 

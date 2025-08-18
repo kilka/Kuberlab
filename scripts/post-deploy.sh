@@ -72,9 +72,26 @@ kubectl wait --for=condition=ready pod -l app.kubernetes.io/part-of=flux -n flux
 
 # 6. Force Flux to reconcile
 echo "🔄 Forcing Flux reconciliation..."
-kubectl annotate kustomization infrastructure reconcile.fluxcd.io/requestedAt=$(date +%s) -n flux-system --overwrite
-kubectl annotate kustomization controllers reconcile.fluxcd.io/requestedAt=$(date +%s) -n flux-system --overwrite
-kubectl annotate kustomization apps reconcile.fluxcd.io/requestedAt=$(date +%s) -n flux-system --overwrite
+kubectl annotate kustomization infrastructure reconcile.fluxcd.io/requestedAt=$(date +%s) -n flux-system --overwrite 2>/dev/null || true
+kubectl annotate kustomization controllers reconcile.fluxcd.io/requestedAt=$(date +%s) -n flux-system --overwrite 2>/dev/null || true
+kubectl annotate kustomization apps reconcile.fluxcd.io/requestedAt=$(date +%s) -n flux-system --overwrite 2>/dev/null || true
+
+# Wait for Flux to apply the manifests
+echo "⏳ Waiting for Flux to apply manifests..."
+sleep 10
+
+# Check for and clean up any old ReplicaSets with invalid image names
+echo "🧹 Cleaning up any invalid ReplicaSets..."
+INVALID_RS=$(kubectl get rs -n ocr -o json | jq -r '.items[] | select(.spec.template.spec.containers[].image | contains("${")) | .metadata.name' 2>/dev/null || echo "")
+if [ -n "$INVALID_RS" ]; then
+    echo "  Found ReplicaSets with invalid image names, cleaning up..."
+    for rs in $INVALID_RS; do
+        kubectl delete rs "$rs" -n ocr 2>/dev/null || true
+    done
+    echo "  Cleaned up invalid ReplicaSets"
+    # Give time for new pods to be scheduled
+    sleep 5
+fi
 
 # 7. Wait for External Secrets Operator
 echo "⏳ Waiting for External Secrets Operator..."
