@@ -82,25 +82,25 @@ variable "system_node_vm_size" {
 variable "user_node_count" {
   description = "Initial number of user nodes"
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "user_node_min_count" {
   description = "Minimum number of user nodes"
   type        = number
-  default     = 1
+  default     = 2  # Increased for better resource distribution
 }
 
 variable "user_node_max_count" {
   description = "Maximum number of user nodes"
   type        = number
-  default     = 10
+  default     = 4  # Reduced for cost control during demos
 }
 
 variable "user_node_vm_size" {
   description = "VM size for user nodes"
   type        = string
-  default     = "Standard_B2ms"  # Changed from B2s due to availability issues
+  default     = "Standard_B2ms"  # Keep current size for now, upgrade later
 }
 
 variable "spot_max_price" {
