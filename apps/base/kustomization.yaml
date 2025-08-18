@@ -29,6 +29,3 @@ resources:
   
   # KEDA Scaling
   - keda/
-  
-  # ALB Controller
-  - alb-controller/

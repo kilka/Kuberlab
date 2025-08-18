@@ -42,14 +42,14 @@ if [ -z "$API_EXISTS" ] || [ -z "$WORKER_EXISTS" ]; then
     if [ -z "$API_EXISTS" ]; then
         echo "📦 Building and pushing API image..."
         docker buildx build --platform linux/amd64,linux/arm64 \
-            -t "$ACR_NAME.azurecr.io/ocr-api:v1.0.1" \
+            -t "$ACR_NAME.azurecr.io/ocr-api:v1.0.2" \
             --push api/
     fi
     
     if [ -z "$WORKER_EXISTS" ]; then
         echo "📦 Building and pushing Worker image..."
         docker buildx build --platform linux/amd64,linux/arm64 \
-            -t "$ACR_NAME.azurecr.io/ocr-worker:v1.0.1" \
+            -t "$ACR_NAME.azurecr.io/ocr-worker:v1.0.2" \
             --push worker/
     fi
 else
@@ -80,7 +80,11 @@ kubectl annotate kustomization apps reconcile.fluxcd.io/requestedAt=$(date +%s) 
 echo "⏳ Waiting for External Secrets Operator..."
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=external-secrets -n external-secrets-system --timeout=300s 2>/dev/null || true
 
-# 8. Check if secrets are synced
+# 8. Wait for ALB Controller
+echo "⏳ Waiting for ALB Controller..."
+kubectl wait --for=condition=ready pod -l app=alb-controller -n azure-alb-system --timeout=300s 2>/dev/null || true
+
+# 9. Check if secrets are synced
 echo "🔐 Checking secret synchronization..."
 for i in {1..30}; do
     SECRET_KEYS=$(kubectl get secret ocr-config -n ocr -o jsonpath='{.data}' 2>/dev/null | jq -r 'keys[]' 2>/dev/null || echo "")
@@ -92,11 +96,11 @@ for i in {1..30}; do
     sleep 10
 done
 
-# 9. Restart deployments to pick up secrets
+# 10. Restart deployments to pick up secrets
 echo "🔄 Restarting deployments to pick up secrets..."
 kubectl rollout restart deploy -n ocr 2>/dev/null || true
 
-# 10. Final status check
+# 11. Final status check
 echo ""
 echo "📊 Final Status Check:"
 echo "===================="
@@ -112,7 +116,33 @@ echo "External Secrets:"
 kubectl get externalsecret -n ocr
 
 echo ""
+echo "Gateway Status:"
+kubectl get gateway -n ocr -o wide
+
+# Wait for Gateway to be programmed
+echo ""
+echo "⏳ Waiting for Gateway to be programmed (this may take a few minutes)..."
+for i in {1..30}; do
+    GATEWAY_ADDRESS=$(kubectl get gateway ocr-gateway -n ocr -o jsonpath='{.status.addresses[0].value}' 2>/dev/null || echo "")
+    if [ -n "$GATEWAY_ADDRESS" ]; then
+        echo "✅ Gateway is ready at: http://$GATEWAY_ADDRESS"
+        echo ""
+        echo "Testing API endpoints:"
+        curl -s "http://$GATEWAY_ADDRESS/health" && echo "" || echo "API not ready yet"
+        break
+    fi
+    echo "  Waiting... ($i/30)"
+    sleep 10
+done
+
+echo ""
 echo "✅ Post-deployment setup complete!"
 echo ""
-echo "Note: The application pods may fail due to missing Python dependencies."
-echo "This is expected as the actual OCR application code hasn't been implemented yet."
+if [ -n "$GATEWAY_ADDRESS" ]; then
+    echo "🌐 Your OCR API is accessible at: http://$GATEWAY_ADDRESS"
+    echo "   - Health: http://$GATEWAY_ADDRESS/health"
+    echo "   - Ready:  http://$GATEWAY_ADDRESS/ready"
+    echo "   - OCR:    http://$GATEWAY_ADDRESS/ocr (POST with image file)"
+else
+    echo "⚠️  Gateway is not yet ready. Check status with: kubectl get gateway -n ocr"
+fi

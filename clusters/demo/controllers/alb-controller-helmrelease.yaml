@@ -5,17 +5,23 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  targetNamespace: kube-system
+  targetNamespace: azure-alb-system
   chart:
     spec:
       chart: alb-controller
-      version: "1.0.2"
+      version: "1.7.9"
       sourceRef:
         kind: HelmRepository
         name: alb-controller
         namespace: flux-system
+  install:
+    crds: Create
+    createNamespace: true
+  upgrade:
+    crds: CreateReplace
   values:
     albController:
-      namespace: arc-system
+      namespace: azure-alb-system
+      installGatewayApiCRDs: true
       podIdentity:
-        clientID: ${KUBELET_IDENTITY_CLIENT_ID}
+        clientID: ${ALB_IDENTITY_CLIENT_ID}

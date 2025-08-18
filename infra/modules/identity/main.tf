@@ -119,10 +119,10 @@ resource "azurerm_user_assigned_identity" "alb" {
 
 # Federated identity credential for ALB Controller (K8s ServiceAccount)
 resource "azurerm_federated_identity_credential" "alb_k8s" {
-  name                = "k8s-alb-controller"
+  name                = "azure-alb-identity"
   resource_group_name = var.resource_group_name
   parent_id           = azurerm_user_assigned_identity.alb.id
   audience            = ["api://AzureADTokenExchange"]
   issuer              = var.aks_oidc_issuer_url
-  subject             = "system:serviceaccount:arc-system:alb-controller-sa"
+  subject             = "system:serviceaccount:azure-alb-system:alb-controller-sa"
 }
