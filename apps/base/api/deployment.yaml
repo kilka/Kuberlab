@@ -50,7 +50,7 @@ spec:
           value: "ocrjobs"
         resources:
           requests:
-            cpu: 100m
+            cpu: 50m    # Reduced for better scheduling
             memory: 256Mi
           limits:
             cpu: 500m
