@@ -16,12 +16,19 @@ spec:
         namespace: flux-system
   install:
     createNamespace: true
+  valuesFrom:
+  - kind: Secret
+    name: cluster-config
+    valuesKey: WORKER_IDENTITY_CLIENT_ID
+    targetPath: podIdentity.azureWorkload.clientId
+  - kind: Secret
+    name: cluster-config
+    valuesKey: TENANT_ID
+    targetPath: podIdentity.azureWorkload.tenantId
   values:
     podIdentity:
       azureWorkload:
         enabled: true
-        clientId: ${WORKER_IDENTITY_CLIENT_ID}
-        tenantId: ${TENANT_ID}
     resources:
       operator:
         limits:

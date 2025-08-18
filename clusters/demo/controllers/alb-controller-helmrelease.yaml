@@ -19,9 +19,12 @@ spec:
     createNamespace: true
   upgrade:
     crds: CreateReplace
+  valuesFrom:
+  - kind: Secret
+    name: cluster-config
+    valuesKey: ALB_IDENTITY_CLIENT_ID
+    targetPath: albController.podIdentity.clientID
   values:
     albController:
       namespace: azure-alb-system
       installGatewayApiCRDs: true
-      podIdentity:
-        clientID: ${ALB_IDENTITY_CLIENT_ID}
