@@ -5,12 +5,21 @@ metadata:
   namespace: ocr
   annotations:
     alb.networking.azure.io/alb-id: "/subscriptions/${AZURE_SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.ServiceNetworking/trafficControllers/${AGC_NAME}"
+    alb.networking.azure.io/alb-frontend: "dev-ocr-frontend"
 spec:
   gatewayClassName: alb-gatewayclass
   listeners:
   - name: http
     port: 80
     protocol: HTTP
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: https
+    port: 443
+    protocol: HTTPS
+    tls:
+      mode: Terminate
     allowedRoutes:
       namespaces:
         from: Same
