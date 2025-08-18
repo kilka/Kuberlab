@@ -81,3 +81,24 @@ output "name" {
   description = "Name of the managed identity (GitHub identity for backward compatibility)"
   value       = azurerm_user_assigned_identity.github.name
 }
+
+# ALB Controller Identity Outputs
+output "alb_identity_id" {
+  description = "ALB managed identity ID"
+  value       = azurerm_user_assigned_identity.alb.id
+}
+
+output "alb_principal_id" {
+  description = "ALB managed identity principal ID"
+  value       = azurerm_user_assigned_identity.alb.principal_id
+}
+
+output "alb_client_id" {
+  description = "ALB managed identity client ID"
+  value       = azurerm_user_assigned_identity.alb.client_id
+}
+
+output "alb_identity_name" {
+  description = "ALB managed identity name"
+  value       = azurerm_user_assigned_identity.alb.name
+}

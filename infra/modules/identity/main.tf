@@ -104,3 +104,25 @@ resource "azurerm_federated_identity_credential" "worker_k8s" {
   issuer              = var.aks_oidc_issuer_url
   subject             = "system:serviceaccount:ocr:ocr-worker"
 }
+
+# ===== ALB Controller Identity =====
+# Managed Identity for ALB Controller
+resource "azurerm_user_assigned_identity" "alb" {
+  name                = "${var.identity_name}-alb"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  
+  tags = merge(var.tags, {
+    component = "alb-controller"
+  })
+}
+
+# Federated identity credential for ALB Controller (K8s ServiceAccount)
+resource "azurerm_federated_identity_credential" "alb_k8s" {
+  name                = "k8s-alb-controller"
+  resource_group_name = var.resource_group_name
+  parent_id           = azurerm_user_assigned_identity.alb.id
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = var.aks_oidc_issuer_url
+  subject             = "system:serviceaccount:arc-system:alb-controller-sa"
+}
