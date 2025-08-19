@@ -88,12 +88,55 @@ if [ -n "$GATEWAY_ADDRESS" ]; then
     echo "💾 Saved API URL to webapp/api-config.json"
     echo ""
     
-    # Test health endpoint
-    echo "🧪 Testing health endpoint..."
-    if curl -s -f "http://$GATEWAY_ADDRESS/health" > /dev/null 2>&1; then
-        echo "✅ API is responding!"
+    # Test health endpoint with retry loop (10 minute timeout)
+    echo "🧪 Waiting for API to be fully ready (max 10 minutes)..."
+    echo ""
+    
+    API_READY=false
+    START_TIME=$(date +%s)
+    TIMEOUT=600  # 10 minutes
+    RETRY_INTERVAL=5
+    
+    while [ $(($(date +%s) - START_TIME)) -lt $TIMEOUT ]; do
+        ELAPSED=$(($(date +%s) - START_TIME))
+        MINUTES=$((ELAPSED / 60))
+        SECONDS=$((ELAPSED % 60))
+        
+        # Try to hit the health endpoint
+        if curl -s -f -m 5 "http://$GATEWAY_ADDRESS/health" > /dev/null 2>&1; then
+            API_READY=true
+            echo ""
+            echo "✅ API is responding!"
+            break
+        fi
+        
+        # Show progress
+        printf "\r  ⏳ Waiting for API... (%dm %ds elapsed)" $MINUTES $SECONDS
+        sleep $RETRY_INTERVAL
+    done
+    
+    echo ""
+    
+    if [ "$API_READY" = true ]; then
+        echo ""
+        echo "=========================================="
+        echo "🎉 Your OCR API is ready for testing! 🎉"
+        echo "=========================================="
+        echo ""
+        echo "🚀 Test your deployment with the web app:"
+        echo ""
+        echo "    make webapp"
+        echo ""
+        echo "This will launch a browser-based testing interface"
+        echo "where you can upload images and see OCR results!"
+        echo ""
     else
-        echo "⚠️  API is not responding yet. It may need a few more moments to initialize."
+        echo "⚠️  API is not responding after 10 minutes."
+        echo "Check the logs with:"
+        echo "  kubectl logs -f deploy/ocr-api -n ocr"
+        echo ""
+        echo "Once the API is ready, test with:"
+        echo "  make webapp"
     fi
 else
     echo "⚠️  Gateway is not ready yet. Check status with:"

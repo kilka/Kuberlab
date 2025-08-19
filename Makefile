@@ -77,16 +77,28 @@ deploy: plan
 	@echo "$(GREEN)✓ Infrastructure deployed and images built!$(NC)"
 	@echo ""
 	@echo "$(BLUE)Running post-deploy verification...$(NC)"
-	@./scripts/post-deploy.sh || true
+	@./scripts/post-deploy.sh 2>&1 | tee /tmp/post-deploy-output.txt || true
 	@echo ""
-	@echo "$(GREEN)✅ Deployment complete!$(NC)"
+	@if grep -q "Your OCR API is ready for testing" /tmp/post-deploy-output.txt 2>/dev/null; then \
+		echo "$(GREEN)========================================$(NC)"; \
+		echo "$(GREEN)✅ Deployment complete and API ready! ✅$(NC)"; \
+		echo "$(GREEN)========================================$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)🚀 Test your deployment now:$(NC)"; \
+		echo ""; \
+		echo "    $(GREEN)make webapp$(NC)"; \
+		echo ""; \
+		echo "This launches a web interface for testing OCR!"; \
+	else \
+		echo "$(GREEN)✅ Deployment complete!$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)Next steps:$(NC)"; \
+		echo "  make webapp        - Launch OCR testing interface"; \
+		echo "  make pod-status    - Check application pods"; \
+		echo "  make connect       - Connect kubectl to cluster"; \
+	fi
 	@echo ""
-	@echo "$(YELLOW)Next steps:$(NC)"
-	@echo "  make connect       - Connect kubectl to cluster"
-	@echo "  make pod-status    - Check application pods"
-	@echo "  make flux-status   - Check GitOps sync"
-	@echo ""
-	@echo "$(RED)Remember: make destroy when done!$(NC)"
+	@echo "$(RED)Remember: make destroy when done (costs ~$$0.70/hour)$(NC)"
 
 destroy:
 	@echo "$(RED)This will DELETE everything!$(NC)"

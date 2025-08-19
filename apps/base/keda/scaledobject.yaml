@@ -6,7 +6,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: ocr-worker
-  minReplicaCount: 0
+  minReplicaCount: 1
   maxReplicaCount: 20
   pollingInterval: 30
   cooldownPeriod: 300
@@ -15,6 +15,6 @@ spec:
     metadata:
       queueName: ocr-jobs
       namespace: ${SERVICE_BUS_NAMESPACE}
-      messageCount: "5"
+      messageCount: "10"
     authenticationRef:
       name: ocr-worker-trigger-auth
