@@ -1,0 +1,20 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: ocr-api-scaler
+  namespace: ocr
+spec:
+  scaleTargetRef:
+    name: ocr-api
+  minReplicaCount: 2
+  maxReplicaCount: 10
+  pollingInterval: 30
+  cooldownPeriod: 300
+  triggers:
+  - type: azure-servicebus
+    metadata:
+      queueName: ocr-jobs
+      namespace: ${SERVICE_BUS_NAMESPACE}
+      messageCount: "20"  # Higher threshold than workers since API handles bursts
+    authenticationRef:
+      name: ocr-worker-trigger-auth  # Reuse the same auth

@@ -71,8 +71,8 @@ plan: init
 deploy: plan
 	@echo "$(YELLOW)This will create ~40 Azure resources (~$$0.70/hour)$(NC)"
 	@read -p "Deploy? (yes/no): " confirm && [ "$$confirm" = "yes" ]
-	@echo "$(BLUE)Checking for orphaned resources from previous deployments...$(NC)"
-	@./scripts/cleanup-orphans.sh || true
+	@echo "$(BLUE)Checking for soft-deleted Key Vaults from previous deployments...$(NC)"
+	@./scripts/cleanup-orphans.sh keyvault-only || true
 	@echo "$(BLUE)Creating Azure infrastructure and building Docker images...$(NC)"
 	@cd $(TF_DIR) && terraform apply tfplan
 	@echo "$(GREEN)✓ Infrastructure deployed and images built!$(NC)"

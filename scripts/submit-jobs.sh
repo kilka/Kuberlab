@@ -19,7 +19,7 @@ BOLD='\033[1m'
 # Default values
 NUM_JOBS=${1:-50}
 TEST_IMAGE=${2:-"../test_image.png"}
-PARALLEL_JOBS=10  # Number of parallel submissions
+PARALLEL_JOBS=50  # Number of parallel submissions
 OUTPUT_FILE="/tmp/ocr_job_ids_$$.txt"
 
 # Validate inputs
@@ -109,7 +109,7 @@ submit_job() {
     local http_code=$(echo "$response" | grep "HTTP_CODE:" | cut -d: -f2)
     local body=$(echo "$response" | sed '/HTTP_CODE:/d')
     
-    if [ $exit_code -eq 0 ] && [ "$http_code" = "200" ]; then
+    if [ $exit_code -eq 0 ] && ([ "$http_code" = "200" ] || [ "$http_code" = "202" ]); then
         local job_id=$(echo "$body" | jq -r '.job_id' 2>/dev/null)
         if [ -n "$job_id" ] && [ "$job_id" != "null" ]; then
             echo "$job_id" >> "$OUTPUT_FILE"
@@ -145,11 +145,8 @@ echo ""
 SUBMITTED=0
 FAILED=0
 
-# Reduce parallel jobs if we have many to submit
-if [ $NUM_JOBS -gt 200 ]; then
-    PARALLEL_JOBS=5
-    echo -e "${YELLOW}Note: Reduced parallel submissions to 5 for large job count${NC}"
-fi
+# Keep parallel jobs constant regardless of job count
+# This allows for maximum submission speed
 
 for ((i=1; i<=NUM_JOBS; i+=$PARALLEL_JOBS)); do
     # Calculate batch size (handle last batch)
@@ -168,13 +165,9 @@ for ((i=1; i<=NUM_JOBS; i+=$PARALLEL_JOBS)); do
     # Wait for batch to complete
     wait
     
-    # Longer pause between batches for large job counts
+    # Small pause between batches to avoid overwhelming the API
     if [ $BATCH_END -lt $NUM_JOBS ]; then
-        if [ $NUM_JOBS -gt 200 ]; then
-            sleep 1
-        else
-            sleep 0.5
-        fi
+        sleep 0.5
     fi
     
     # Extra pause every 100 jobs to let the system catch up

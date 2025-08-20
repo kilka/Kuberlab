@@ -17,18 +17,23 @@ NC='\033[0m' # No Color
 BOLD='\033[1m'
 
 # Default values
-JOB_FILE=${1:-"/tmp/ocr_job_ids_$$.txt"}
+JOB_FILE=${1:-""}
 MONITORING_INTERVAL=${2:-5}
 NAMESPACE="ocr"
+MONITOR_ONLY_MODE=false
 
-# Validate inputs
-if [ ! -f "$JOB_FILE" ]; then
+# Check if we're in monitor-only mode (no job file provided)
+if [ -z "$JOB_FILE" ] || [ "$JOB_FILE" = "--monitor-only" ]; then
+    MONITOR_ONLY_MODE=true
+    echo -e "${BLUE}Running in monitor-only mode (no job tracking)${NC}"
+elif [ ! -f "$JOB_FILE" ]; then
     echo -e "${RED}Error: Job file '$JOB_FILE' not found${NC}"
     echo ""
     echo "Available job files:"
     ls -la /tmp/ocr_job_ids_*.txt 2>/dev/null || echo "  No job files found"
     echo ""
-    echo "Usage: $0 <job_ids_file> [monitoring_interval]"
+    echo "Usage: $0 [job_ids_file] [monitoring_interval]"
+    echo "       $0  # Monitor-only mode (no job tracking)"
     exit 1
 fi
 
@@ -49,11 +54,13 @@ else
     fi
 fi
 
-# Read job IDs into array (macOS compatible)
+# Read job IDs into array (macOS compatible) - only if not in monitor-only mode
 JOB_IDS=()
-while IFS= read -r line; do
-    JOB_IDS+=("$line")
-done < "$JOB_FILE"
+if [ "$MONITOR_ONLY_MODE" = false ]; then
+    while IFS= read -r line; do
+        JOB_IDS+=("$line")
+    done < "$JOB_FILE"
+fi
 declare -a JOB_STATUSES=()
 
 echo -e "${BOLD}${CYAN}════════════════════════════════════════════════════════════════${NC}"
@@ -61,8 +68,12 @@ echo -e "${BOLD}${CYAN}              OCR Job Monitoring Dashboard               
 echo -e "${BOLD}${CYAN}════════════════════════════════════════════════════════════════${NC}"
 echo ""
 echo -e "${YELLOW}Configuration:${NC}"
-echo -e "  • Jobs to monitor: ${BOLD}${#JOB_IDS[@]}${NC}"
-echo -e "  • Job file: ${BOLD}$JOB_FILE${NC}"
+if [ "$MONITOR_ONLY_MODE" = false ]; then
+    echo -e "  • Jobs to monitor: ${BOLD}${#JOB_IDS[@]}${NC}"
+    echo -e "  • Job file: ${BOLD}$JOB_FILE${NC}"
+else
+    echo -e "  • Mode: ${BOLD}System monitoring only (no job tracking)${NC}"
+fi
 echo -e "  • API URL: ${BOLD}$API_URL${NC}"
 echo -e "  • Update interval: ${BOLD}${MONITORING_INTERVAL}s${NC}"
 echo ""
@@ -137,6 +148,11 @@ verify_job_result() {
 
 # Function to check job statuses with better performance
 check_job_completion() {
+    # Skip if in monitor-only mode
+    if [ "$MONITOR_ONLY_MODE" = true ]; then
+        return 1
+    fi
+    
     local completed=0
     local pending=0
     local processing=0
@@ -229,28 +245,30 @@ while true; do
     
     echo -e "\n${BOLD}${CYAN}═══ Update #$ITERATION ═══ ${NC}${YELLOW}[${MINUTES}m ${SECONDS}s elapsed]${NC}"
     
-    # Check job completion
-    check_job_completion
-    
-    # Calculate processing metrics
-    completed_count=0
-    for status in "${JOB_STATUSES[@]}"; do
-        if [ "$status" == "completed" ]; then
-            ((completed_count++))
-        fi
-    done
-    
-    if [ $ELAPSED -gt 0 ] && [ $completed_count -gt 0 ]; then
-        rate=$(echo "scale=2; $completed_count * 60 / $ELAPSED" | bc)
-        echo -e "${MAGENTA}⚡ Processing rate:${NC} $rate jobs/min"
+    # Check job completion (skip if in monitor-only mode)
+    if [ "$MONITOR_ONLY_MODE" = false ]; then
+        check_job_completion
         
-        # ETA calculation
-        remaining=$((${#JOB_IDS[@]} - completed_count))
-        if [ $remaining -gt 0 ] && [ $completed_count -gt 0 ]; then
-            eta_seconds=$(echo "scale=0; $remaining * $ELAPSED / $completed_count" | bc)
-            eta_minutes=$((eta_seconds / 60))
-            eta_secs=$((eta_seconds % 60))
-            echo -e "${MAGENTA}⏱️  ETA:${NC} ${eta_minutes}m ${eta_secs}s"
+        # Calculate processing metrics
+        completed_count=0
+        for status in "${JOB_STATUSES[@]}"; do
+            if [ "$status" == "completed" ]; then
+                ((completed_count++))
+            fi
+        done
+        
+        if [ $ELAPSED -gt 0 ] && [ $completed_count -gt 0 ]; then
+            rate=$(echo "scale=2; $completed_count * 60 / $ELAPSED" | bc)
+            echo -e "${MAGENTA}⚡ Processing rate:${NC} $rate jobs/min"
+            
+            # ETA calculation
+            remaining=$((${#JOB_IDS[@]} - completed_count))
+            if [ $remaining -gt 0 ] && [ $completed_count -gt 0 ]; then
+                eta_seconds=$(echo "scale=0; $remaining * $ELAPSED / $completed_count" | bc)
+                eta_minutes=$((eta_seconds / 60))
+                eta_secs=$((eta_seconds % 60))
+                echo -e "${MAGENTA}⏱️  ETA:${NC} ${eta_minutes}m ${eta_secs}s"
+            fi
         fi
     fi
     
@@ -271,8 +289,8 @@ while true; do
         echo -e "${GREEN}📈 New max nodes: $MAX_NODES${NC}"
     fi
     
-    # Check if all jobs are complete
-    if check_job_completion >/dev/null 2>&1; then
+    # Check if all jobs are complete (skip if in monitor-only mode)
+    if [ "$MONITOR_ONLY_MODE" = false ] && check_job_completion >/dev/null 2>&1; then
         echo -e "\n${GREEN}${BOLD}════════════════════════════════════════════════════════════════${NC}"
         echo -e "${GREEN}${BOLD}                    🎉 ALL JOBS COMPLETED! 🎉                    ${NC}"
         echo -e "${GREEN}${BOLD}════════════════════════════════════════════════════════════════${NC}"

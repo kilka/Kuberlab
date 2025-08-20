@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - triggerauthentication.yaml
   - scaledobject.yaml
+  - scaledobject-api.yaml

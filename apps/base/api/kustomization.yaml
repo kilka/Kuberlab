@@ -4,5 +4,5 @@ kind: Kustomization
 resources:
   - deployment.yaml
   - service.yaml
-  - hpa.yaml
+  # - hpa.yaml  # Removed - using KEDA ScaledObject instead
   - pdb.yaml
