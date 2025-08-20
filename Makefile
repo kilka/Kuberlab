@@ -42,6 +42,7 @@ help:
 	@echo "  make flux-status    - Check Flux GitOps sync status"
 	@echo "  make pod-status     - Check application pod status"
 	@echo "  make cost           - Check current costs"
+	@echo "  make diagrams       - Generate architecture diagrams"
 	@echo ""
 	@echo "$(YELLOW)⚠ Costs: ~$$0.70/hour when deployed$(NC)"
 
@@ -237,8 +238,18 @@ webapp:
 	@sleep 1 && (open http://localhost:8080 2>/dev/null || xdg-open http://localhost:8080 2>/dev/null || echo "") & \
 		python3 webapp/proxy_server.py
 
+diagrams:
+	@echo "$(BLUE)Generating architecture diagrams...$(NC)"
+	@cd docs && \
+		if ! pip show diagrams >/dev/null 2>&1; then \
+			echo "$(YELLOW)Installing diagram dependencies...$(NC)"; \
+			pip install -q -r requirements.txt; \
+		fi && \
+		python3 architecture_diagram.py
+	@echo "$(GREEN)✓ Diagrams generated in docs/diagrams/$(NC)"
+
 clean:
 	@rm -rf $(TF_DIR)/.terraform $(TF_DIR)/tfplan $(TF_DIR)/.terraform.lock.hcl
 	@echo "$(GREEN)✓ Cleaned$(NC)"
 
-.PHONY: help init plan deploy destroy destroy-slow destroy-nuclear cleanup-orphans cleanup-keyvault connect flux-status check-images build-images force-images pod-status cost outputs webapp clean
+.PHONY: help init plan deploy destroy destroy-slow destroy-nuclear cleanup-orphans cleanup-keyvault connect flux-status check-images build-images force-images pod-status cost outputs webapp diagrams clean

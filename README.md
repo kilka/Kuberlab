@@ -51,7 +51,7 @@ make cost           # Check current Azure costs
 - **Compute**: AKS with AAD RBAC, Workload Identity, Calico NetworkPolicies
 - **Application**: FastAPI OCR service + Python workers with Tesseract
 - **Messaging**: Azure Service Bus for async job processing
-- **Storage**: Blob Storage (images/results) + PostgreSQL (job metadata)
+- **Storage**: Blob Storage (images/results) + Table Storage (job metadata)
 - **Security**: Key Vault + Workload Identity, Pod Security Standards
 - **Scaling**: KEDA for queue-based autoscaling, HPA for API pods
 - **Observability**: Container Insights, Log Analytics, custom alerts
