@@ -6,3 +6,4 @@ metadata:
 spec:
   podIdentity:
     provider: azure-workload
+    identityId: "${WORKER_IDENTITY_CLIENT_ID}"
