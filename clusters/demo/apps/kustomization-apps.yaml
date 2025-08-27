@@ -6,6 +6,8 @@ metadata:
 spec:
   interval: 1m
   path: ./clusters/demo/apps
+  # Retry configuration for more resilient deployments
+  retryInterval: 30s
   prune: true
   sourceRef:
     kind: GitRepository
@@ -17,3 +19,13 @@ spec:
     - kind: Secret
       name: cluster-config
       # Secret is in flux-system namespace (same as this Kustomization)
+  # Health checks to ensure resources are properly configured
+  healthChecks:
+    - apiVersion: external-secrets.io/v1beta1
+      kind: SecretStore
+      name: azure-keyvault
+      namespace: ocr
+    - apiVersion: v1
+      kind: Secret
+      name: ocr-config
+      namespace: ocr
