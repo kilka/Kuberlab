@@ -7,9 +7,30 @@ spec:
   scaleTargetRef:
     name: ocr-worker
   minReplicaCount: 1
-  maxReplicaCount: 20
-  pollingInterval: 30
-  cooldownPeriod: 300
+  maxReplicaCount: 40  # Increased for 500+ job capacity
+  pollingInterval: 15  # More responsive scaling
+  cooldownPeriod: 60   # Faster recovery from scale-downs
+  # Advanced scaling controls for large workloads
+  advanced:
+    restoreToOriginalReplicaCount: false
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 60
+          policies:
+          - type: Percent
+            value: 100  # Max 100% increase per minute
+            periodSeconds: 60
+          - type: Pods
+            value: 10   # Max 10 pods per minute
+            periodSeconds: 60
+          selectPolicy: Min
+        scaleDown:
+          stabilizationWindowSeconds: 300  # Wait 5min before scale down
+          policies:
+          - type: Percent
+            value: 50   # Max 50% decrease per minute
+            periodSeconds: 60
   triggers:
   - type: azure-servicebus
     metadata:

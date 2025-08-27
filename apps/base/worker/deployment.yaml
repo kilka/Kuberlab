@@ -76,10 +76,10 @@ spec:
           value: "8001"
         resources:
           requests:
-            cpu: 100m   # Reduced for better scheduling
-            memory: 512Mi
+            cpu: 50m    # Reduced for better node packing
+            memory: 256Mi
           limits:
-            cpu: 500m   # Reduced to allow 4 workers per node
+            cpu: 250m   # Allows 8 workers per node vs 4
             memory: 1Gi
         securityContext:
           allowPrivilegeEscalation: false
