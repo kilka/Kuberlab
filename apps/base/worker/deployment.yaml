@@ -17,6 +17,24 @@ spec:
         azure.workload.identity/use: "true"
     spec:
       serviceAccountName: ocr-worker
+      # Distribute pods across nodes for better resource utilization
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: ocr-worker
+              topologyKey: kubernetes.io/hostname
+      # Ensure even distribution across nodes
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: ocr-worker
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

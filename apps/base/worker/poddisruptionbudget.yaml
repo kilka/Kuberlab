@@ -1,0 +1,13 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ocr-worker-pdb
+  namespace: ocr
+  labels:
+    app: ocr-worker
+spec:
+  selector:
+    matchLabels:
+      app: ocr-worker
+  # Keep at least 1 worker running during disruptions
+  minAvailable: 1

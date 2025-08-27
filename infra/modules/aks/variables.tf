@@ -94,7 +94,7 @@ variable "user_node_min_count" {
 variable "user_node_max_count" {
   description = "Maximum number of user nodes"
   type        = number
-  default     = 4  # Reduced for cost control during demos
+  default     = 10  # Increased to handle KEDA scaling spikes
 }
 
 variable "user_node_vm_size" {
