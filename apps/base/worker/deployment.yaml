@@ -79,7 +79,7 @@ spec:
             cpu: 100m   # Reduced for better scheduling
             memory: 512Mi
           limits:
-            cpu: 1000m
+            cpu: 500m   # Reduced to allow 4 workers per node
             memory: 1Gi
         securityContext:
           allowPrivilegeEscalation: false
