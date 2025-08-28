@@ -7,7 +7,7 @@ spec:
   scaleTargetRef:
     name: ocr-worker
   minReplicaCount: 1
-  maxReplicaCount: 100  # Target: ~100 pods for 3-minute processing on D4s_v3 nodes
+  maxReplicaCount: 15   # Right-sized for 500 jobs in ~5 minutes
   pollingInterval: 3   # Ultra responsive scaling (3s polling)
   cooldownPeriod: 30   # Fast recovery from scale-downs (30s vs 60s)
   # Aggressive scaling controls for high-throughput workloads
@@ -22,7 +22,7 @@ spec:
             value: 300  # Max 300% increase per 15 seconds (extremely aggressive)
             periodSeconds: 15  # Check every 15 seconds
           - type: Pods
-            value: 30   # Max 30 pods per 15 seconds (tripled)
+            value: 10   # Max 10 pods per 15 seconds (right-sized)
             periodSeconds: 15
           selectPolicy: Max  # Take maximum of both policies (aggressive)
         scaleDown:
@@ -37,7 +37,7 @@ spec:
     metadata:
       queueName: ocr-jobs
       namespace: ${SERVICE_BUS_NAMESPACE}
-      messageCount: "1"  # Ultra-aggressive: scale for every message in queue
+      messageCount: "5"  # 5 messages per pod (right-sized concurrency)
       activationQueueLength: "1"  # Start scaling at just 1 message
     authenticationRef:
       name: ocr-worker-trigger-auth

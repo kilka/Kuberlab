@@ -75,16 +75,16 @@ spec:
         - name: METRICS_PORT
           value: "8001"
         - name: CONCURRENT_WORKERS
-          value: "2"
+          value: "5"
         - name: TESSERACT_POOL_SIZE
-          value: "3"
+          value: "5"
         resources:
           requests:
-            cpu: 150m   # Based on observed 402-480m peak usage per worker
-            memory: 256Mi # Based on observed 42-154Mi actual usage + buffer
+            cpu: 500m   # Right-sized for OCR workloads
+            memory: 512Mi # Memory for concurrent processing
           limits:
-            cpu: 500m   # 1.2x headroom for OCR processing (was 800m, causing overcommit)
-            memory: 512Mi # 3x headroom for concurrent processing
+            cpu: 1000m  # 1 core for efficient Tesseract processing
+            memory: 1Gi   # Room for image processing
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
