@@ -11,6 +11,13 @@ spec:
   - matches:
     - path:
         type: PathPrefix
+        value: /generate-upload-url
+    backendRefs:
+    - name: ocr-api
+      port: 80
+  - matches:
+    - path:
+        type: PathPrefix
         value: /ocr
     backendRefs:
     - name: ocr-api

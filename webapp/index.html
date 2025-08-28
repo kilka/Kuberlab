@@ -205,7 +205,7 @@
 <body>
     <div class="container">
         <h1>🔍 OCR Testing</h1>
-        <p class="subtitle">Upload an image to extract text using Azure Kubernetes Service</p>
+        <p class="subtitle">Direct upload to Azure Blob Storage with enterprise-grade OCR processing</p>
         
         <div id="status" class="status disconnected">
             Checking API connection...
@@ -325,7 +325,82 @@
             // Clear previous results
             errorContainer.innerHTML = '';
             jobInfo.style.display = 'none';
-            resultContent.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+            resultContent.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top: 10px; color: #666;">Preparing direct upload...</p></div>';
+
+            try {
+                // Step 1: Get upload URL and job ID
+                const urlResponse = await fetch(`/api/generate-upload-url?filename=${encodeURIComponent(file.name)}`, {
+                    method: 'POST'
+                });
+
+                if (!urlResponse.ok) {
+                    // Fallback to old method if new endpoints aren't deployed yet
+                    if (urlResponse.status === 404 || urlResponse.status === 405) {
+                        console.log('Direct upload not available, falling back to legacy upload');
+                        return uploadFileLegacy(file);
+                    }
+                    const urlError = await urlResponse.json();
+                    throw new Error(urlError.detail || 'Failed to generate upload URL');
+                }
+
+                const urlData = await urlResponse.json();
+                const { job_id, upload_url, blob_name } = urlData;
+
+                // Show job ID immediately
+                jobInfo.textContent = `Job ID: ${job_id}`;
+                jobInfo.style.display = 'block';
+
+                // Update loading message
+                resultContent.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top: 10px; color: #666;">Uploading directly to Azure Blob Storage...</p></div>';
+
+                // Step 2: Upload directly to blob storage using SAS URL
+                const uploadResponse = await fetch(upload_url, {
+                    method: 'PUT',
+                    headers: {
+                        'x-ms-blob-type': 'BlockBlob'
+                    },
+                    body: file
+                });
+
+                if (!uploadResponse.ok) {
+                    throw new Error(`Direct upload failed: HTTP ${uploadResponse.status}`);
+                }
+
+                // Update loading message
+                resultContent.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top: 10px; color: #666;">Confirming upload and queuing OCR job...</p></div>';
+
+                // Step 3: Confirm upload and queue job
+                const confirmResponse = await fetch(`/api/ocr/confirm-upload?job_id=${job_id}&filename=${encodeURIComponent(file.name)}`, {
+                    method: 'POST'
+                });
+
+                if (!confirmResponse.ok) {
+                    const confirmError = await confirmResponse.json();
+                    throw new Error(confirmError.detail || 'Failed to confirm upload');
+                }
+
+                const confirmData = await confirmResponse.json();
+
+                // Update loading message for processing
+                resultContent.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top: 10px; color: #666;">OCR processing in progress...</p></div>';
+
+                // Poll for results
+                pollForResults(job_id);
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                showError('Upload failed: ' + error.message);
+                resultContent.innerHTML = '<p style="color: #999;">Upload failed</p>';
+            }
+        }
+
+        async function uploadFileLegacy(file) {
+            const resultContent = document.getElementById('resultContent');
+            const jobInfo = document.getElementById('jobInfo');
+            const errorContainer = document.getElementById('errorContainer');
+            
+            // Update loading message
+            resultContent.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top: 10px; color: #666;">Using legacy upload method...</p></div>';
 
             try {
                 const formData = new FormData();
@@ -340,8 +415,11 @@
 
                 if (response.ok) {
                     // Show job ID
-                    jobInfo.textContent = `Job ID: ${data.job_id}`;
+                    jobInfo.textContent = `Job ID: ${data.job_id} (legacy)`;
                     jobInfo.style.display = 'block';
+
+                    // Update loading message for processing
+                    resultContent.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top: 10px; color: #666;">OCR processing in progress...</p></div>';
 
                     // Poll for results
                     pollForResults(data.job_id);
