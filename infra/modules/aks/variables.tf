@@ -100,7 +100,7 @@ variable "user_node_max_count" {
 variable "user_node_vm_size" {
   description = "VM size for user nodes"
   type        = string
-  default     = "Standard_B2ms"  # Keep current size for now, upgrade later
+  default     = "Standard_D4s_v3"  # 4 vCPUs, 16GB RAM - optimized for OCR workloads
 }
 
 variable "spot_max_price" {

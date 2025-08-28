@@ -62,11 +62,11 @@ spec:
           value: "ocrjobs"
         resources:
           requests:
-            cpu: 50m    # Reduced for better scheduling
+            cpu: 100m   # More realistic baseline for API workloads
             memory: 256Mi
           limits:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 500m   # Allow bursts for SAS token generation and blob operations
+            memory: 512Mi  # Sufficient for FastAPI with blob operations
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true

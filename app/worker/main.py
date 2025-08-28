@@ -4,8 +4,11 @@ import os
 import signal
 import sys
 import time
+import concurrent.futures
+import threading
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
+from queue import Queue
 
 import pytesseract
 from PIL import Image
@@ -32,12 +35,18 @@ RESULT_CONTAINER = os.getenv("STORAGE_RESULT_CONTAINER", "results")
 TABLE_NAME = os.getenv("TABLE_NAME", "ocrjobs")
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
 METRICS_PORT = int(os.getenv("METRICS_PORT", "8001"))
+CONCURRENT_WORKERS = int(os.getenv("CONCURRENT_WORKERS", "3"))  # Process 3 messages concurrently
+TESSERACT_POOL_SIZE = int(os.getenv("TESSERACT_POOL_SIZE", "3"))  # Pre-initialized Tesseract engines
 
 sb_client: Optional[ServiceBusClient] = None
 blob_service_client: Optional[BlobServiceClient] = None
 table_service_client: Optional[TableServiceClient] = None
 receiver: Optional[ServiceBusReceiver] = None
 running = True
+
+# Tesseract engine pool for performance
+tesseract_pool = Queue()
+tesseract_pool_lock = threading.Lock()
 
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully."""
@@ -47,6 +56,19 @@ def signal_handler(signum, frame):
 
 signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
+
+def initialize_tesseract_pool():
+    """Initialize pool of Tesseract engines for performance."""
+    logger.info(f"Initializing {TESSERACT_POOL_SIZE} Tesseract engines...")
+    for i in range(TESSERACT_POOL_SIZE):
+        try:
+            # Pre-configure Tesseract for optimal performance
+            config = '--psm 3 --oem 3 -c tessedit_do_invert=0'
+            tesseract_pool.put(config)
+            logger.info(f"Initialized Tesseract engine {i+1}/{TESSERACT_POOL_SIZE}")
+        except Exception as e:
+            logger.error(f"Failed to initialize Tesseract engine {i+1}: {e}")
+    logger.info("Tesseract pool initialization complete")
 
 def initialize_clients():
     """Initialize Azure service clients."""
@@ -90,6 +112,10 @@ def initialize_clients():
         else:
             logger.error("STORAGE_CONNECTION_STRING not set")
             sys.exit(1)
+        
+        # Initialize Tesseract pool
+        initialize_tesseract_pool()
+        
     except Exception as e:
         logger.error(f"Failed to initialize clients: {e}")
         sys.exit(1)
@@ -120,35 +146,62 @@ def update_job_status(job_id: str, status: str, error: Optional[str] = None, res
         logger.error(f"Failed to update job status: {e}")
 
 def process_ocr(job_id: str, blob_name: str) -> str:
-    """Process OCR on the image blob and return extracted text."""
+    """Process OCR on the image blob and return extracted text with optimized streaming."""
     if not blob_service_client:
         raise Exception("Blob service client not initialized")
     
+    tesseract_config = None
     try:
-        # Download image from blob storage
+        # Get Tesseract engine from pool
+        tesseract_config = tesseract_pool.get(timeout=30)
+        
+        # Stream image data instead of loading entire file
         container_client = blob_service_client.get_container_client(UPLOAD_CONTAINER)
         blob_client = container_client.get_blob_client(blob_name)
-        image_data = blob_client.download_blob().readall()
         
-        # Open image with PIL
-        image = Image.open(io.BytesIO(image_data))
-        
-        # Convert to RGB if necessary (for PNG with alpha channel)
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
-        
-        # Perform OCR with Tesseract (English only)
-        text = pytesseract.image_to_string(image, lang='eng')
-        
-        if not text or text.strip() == "":
-            text = "No text detected in image"
-        
-        logger.info(f"OCR completed for job {job_id}, extracted {len(text)} characters")
-        return text
+        # Stream processing - read in chunks to reduce memory usage
+        with io.BytesIO() as image_buffer:
+            # Download in 64KB chunks
+            blob_stream = blob_client.download_blob()
+            for chunk in blob_stream.chunks():
+                image_buffer.write(chunk)
+                if image_buffer.tell() > 50 * 1024 * 1024:  # 50MB limit
+                    raise Exception("Image too large for processing")
+            
+            image_buffer.seek(0)
+            
+            # Open image with PIL from buffer
+            image = Image.open(image_buffer)
+            
+            # Convert to RGB if necessary (for PNG with alpha channel)
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+            
+            # Optimize image for OCR (resize if too large)
+            width, height = image.size
+            if width > 3000 or height > 3000:
+                # Resize large images to reduce processing time
+                ratio = min(3000/width, 3000/height)
+                new_size = (int(width * ratio), int(height * ratio))
+                image = image.resize(new_size, Image.Resampling.LANCZOS)
+                logger.info(f"Resized image for job {job_id} from {width}x{height} to {new_size[0]}x{new_size[1]}")
+            
+            # Perform OCR with pooled Tesseract engine
+            text = pytesseract.image_to_string(image, lang='eng', config=tesseract_config)
+            
+            if not text or text.strip() == "":
+                text = "No text detected in image"
+            
+            logger.info(f"OCR completed for job {job_id}, extracted {len(text)} characters")
+            return text
         
     except Exception as e:
         logger.error(f"OCR processing failed for job {job_id}: {e}")
         raise
+    finally:
+        # Return Tesseract engine to pool
+        if tesseract_config:
+            tesseract_pool.put(tesseract_config)
 
 def save_result(job_id: str, text: str) -> str:
     """Save OCR result to blob storage and return blob name."""
@@ -259,10 +312,10 @@ def process_message(message: ServiceBusReceivedMessage):
             JOBS_FAILED.labels(error_type="retryable").inc()
 
 def main():
-    """Main worker loop."""
+    """Main worker loop with concurrent message processing."""
     global running
     
-    logger.info("Starting OCR worker...")
+    logger.info(f"Starting OCR worker with {CONCURRENT_WORKERS} concurrent workers...")
     
     # Start Prometheus metrics server
     start_http_server(METRICS_PORT)
@@ -273,24 +326,41 @@ def main():
     
     logger.info("Worker ready, waiting for messages...")
     
-    while running:
-        try:
-            # Receive messages
-            messages = receiver.receive_messages(max_message_count=1, max_wait_time=5)
-            
-            for message in messages:
-                if not running:
-                    break
+    # Use ThreadPoolExecutor for concurrent message processing
+    with concurrent.futures.ThreadPoolExecutor(max_workers=CONCURRENT_WORKERS) as executor:
+        while running:
+            try:
+                # Receive multiple messages for concurrent processing
+                messages = receiver.receive_messages(
+                    max_message_count=CONCURRENT_WORKERS,
+                    max_wait_time=5
+                )
+                
+                if messages:
+                    # Submit messages for concurrent processing
+                    futures = []
+                    for message in messages:
+                        if not running:
+                            break
+                        logger.info(f"Received message: {message.message_id}")
+                        future = executor.submit(process_message, message)
+                        futures.append(future)
                     
-                logger.info(f"Received message: {message.message_id}")
-                process_message(message)
-            
-        except KeyboardInterrupt:
-            logger.info("Received keyboard interrupt")
-            break
-        except Exception as e:
-            logger.error(f"Error in main loop: {e}")
-            time.sleep(5)  # Wait before retrying
+                    # Wait for all concurrent tasks to complete (with timeout)
+                    for future in concurrent.futures.as_completed(futures, timeout=300):  # 5 minute timeout
+                        try:
+                            future.result()  # This will raise any exceptions from the worker
+                        except Exception as e:
+                            logger.error(f"Concurrent worker failed: {e}")
+                
+            except KeyboardInterrupt:
+                logger.info("Received keyboard interrupt")
+                break
+            except concurrent.futures.TimeoutError:
+                logger.warning("Some worker tasks timed out, continuing...")
+            except Exception as e:
+                logger.error(f"Error in main loop: {e}")
+                time.sleep(5)  # Wait before retrying
     
     # Cleanup
     logger.info("Shutting down worker...")

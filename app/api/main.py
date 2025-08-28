@@ -2,11 +2,11 @@ import hashlib
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from azure.servicebus import ServiceBusClient, ServiceBusMessage
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
 from azure.data.tables import TableServiceClient, TableEntity
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
@@ -89,6 +89,176 @@ async def ready():
 async def metrics():
     """Prometheus metrics endpoint."""
     return Response(generate_latest(), media_type="text/plain")
+
+@app.post("/generate-upload-url")
+async def generate_upload_url(filename: str):
+    """
+    Generate direct upload URL to blob storage with SAS token.
+    
+    This enables clients to upload directly to blob storage, eliminating
+    the API server bottleneck and reducing bandwidth costs.
+    """
+    REQUEST_COUNT.labels(method="POST", endpoint="/generate-upload-url", status="started").inc()
+    
+    if not blob_service_client:
+        REQUEST_COUNT.labels(method="POST", endpoint="/generate-upload-url", status="503").inc()
+        raise HTTPException(status_code=503, detail="Storage service unavailable")
+    
+    try:
+        # Validate file extension
+        file_extension = os.path.splitext(filename)[1].lower()
+        if file_extension not in ALLOWED_EXTENSIONS:
+            REQUEST_COUNT.labels(method="POST", endpoint="/generate-upload-url", status="400").inc()
+            raise HTTPException(status_code=400, detail=f"Invalid file format. Allowed: {ALLOWED_EXTENSIONS}")
+        
+        # Pre-generate job ID for idempotency (based on filename + timestamp)
+        temp_content = f"{filename}_{datetime.utcnow().isoformat()}"
+        job_id = hashlib.sha256(temp_content.encode()).hexdigest()
+        
+        blob_name = f"{job_id}{file_extension}"
+        
+        # Generate SAS token for direct upload
+        sas_token = generate_blob_sas(
+            account_name=blob_service_client.account_name,
+            account_key=blob_service_client.credential.account_key,
+            container_name=STORAGE_CONTAINER,
+            blob_name=blob_name,
+            permission=BlobSasPermissions(write=True),
+            expiry=datetime.utcnow() + timedelta(minutes=10)
+        )
+        
+        upload_url = f"https://{blob_service_client.account_name}.blob.core.windows.net/{STORAGE_CONTAINER}/{blob_name}?{sas_token}"
+        
+        REQUEST_COUNT.labels(method="POST", endpoint="/generate-upload-url", status="200").inc()
+        
+        return {
+            "job_id": job_id,
+            "upload_url": upload_url,
+            "blob_name": blob_name,
+            "expires_in": 600,  # 10 minutes
+            "max_file_size": MAX_FILE_SIZE,
+            "message": "Upload file directly to this URL, then call /ocr/confirm-upload"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to generate upload URL: {e}")
+        REQUEST_COUNT.labels(method="POST", endpoint="/generate-upload-url", status="500").inc()
+        raise HTTPException(status_code=500, detail="Failed to generate upload URL")
+
+@app.post("/ocr/confirm-upload")
+async def confirm_upload(job_id: str, filename: str):
+    """
+    Confirm that a file has been uploaded directly to blob storage
+    and queue it for OCR processing.
+    """
+    REQUEST_COUNT.labels(method="POST", endpoint="/ocr/confirm-upload", status="started").inc()
+    
+    try:
+        file_extension = os.path.splitext(filename)[1].lower()
+        blob_name = f"{job_id}{file_extension}"
+        
+        # Verify the blob exists and get its size
+        if blob_service_client:
+            try:
+                container_client = blob_service_client.get_container_client(STORAGE_CONTAINER)
+                blob_client = container_client.get_blob_client(blob_name)
+                blob_properties = blob_client.get_blob_properties()
+                file_size = blob_properties.size
+                
+                if file_size == 0:
+                    REQUEST_COUNT.labels(method="POST", endpoint="/ocr/confirm-upload", status="400").inc()
+                    raise HTTPException(status_code=400, detail="Uploaded file is empty")
+                
+                if file_size > MAX_FILE_SIZE:
+                    REQUEST_COUNT.labels(method="POST", endpoint="/ocr/confirm-upload", status="400").inc()
+                    raise HTTPException(status_code=400, detail="Uploaded file exceeds size limit")
+                
+            except Exception as e:
+                if "BlobNotFound" in str(e):
+                    REQUEST_COUNT.labels(method="POST", endpoint="/ocr/confirm-upload", status="404").inc()
+                    raise HTTPException(status_code=404, detail="File not found. Please upload first.")
+                raise HTTPException(status_code=500, detail="Failed to verify uploaded file")
+        
+        # Check if job already exists
+        if table_service_client:
+            try:
+                table_client = table_service_client.get_table_client(TABLE_NAME)
+                entity = table_client.get_entity(partition_key="jobs", row_key=job_id)
+                if entity:
+                    logger.info(f"Job {job_id} already exists, returning existing job")
+                    REQUEST_COUNT.labels(method="POST", endpoint="/ocr/confirm-upload", status="200").inc()
+                    return {
+                        "job_id": job_id,
+                        "status": entity.get("status", "processing"),
+                        "message": "Job already exists"
+                    }
+            except Exception:
+                pass  # Job doesn't exist, continue with creation
+        
+        # Send message to queue
+        message_body = {
+            "job_id": job_id,
+            "blob_name": blob_name,
+            "filename": filename,
+            "created_at": datetime.utcnow().isoformat(),
+            "file_size": file_size
+        }
+        
+        if sb_client:
+            try:
+                with sb_client:
+                    sender = sb_client.get_queue_sender(queue_name=QUEUE_NAME)
+                    with sender:
+                        message = ServiceBusMessage(
+                            body=json.dumps(message_body),
+                            content_type="application/json",
+                            message_id=job_id
+                        )
+                        sender.send_messages(message)
+                        logger.info(f"Sent message to queue for job: {job_id}")
+            except Exception as e:
+                logger.error(f"Failed to send message to Service Bus: {e}")
+                JOB_ERRORS.labels(error_type="queue_send_failed").inc()
+                raise HTTPException(status_code=500, detail="Failed to queue job")
+        
+        # Create table entry
+        if table_service_client:
+            try:
+                table_client = table_service_client.get_table_client(TABLE_NAME)
+                entity = TableEntity()
+                entity["PartitionKey"] = "jobs"
+                entity["RowKey"] = job_id
+                entity["status"] = "queued"
+                entity["filename"] = filename
+                entity["blob_name"] = blob_name
+                entity["created_at"] = datetime.utcnow().isoformat()
+                entity["file_size"] = file_size
+                
+                table_client.create_entity(entity)
+                logger.info(f"Created table entity for job: {job_id}")
+            except Exception as e:
+                logger.error(f"Failed to create table entity: {e}")
+                # Don't fail the request if table storage fails
+        
+        JOB_CREATED.inc()
+        REQUEST_COUNT.labels(method="POST", endpoint="/ocr/confirm-upload", status="202").inc()
+        
+        return JSONResponse(
+            status_code=202,
+            content={
+                "job_id": job_id,
+                "status": "queued",
+                "message": "Job created successfully"
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        REQUEST_COUNT.labels(method="POST", endpoint="/ocr/confirm-upload", status="500").inc()
+        JOB_ERRORS.labels(error_type="unexpected").inc()
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/ocr")
 async def create_ocr_job(file: UploadFile = File(...)):

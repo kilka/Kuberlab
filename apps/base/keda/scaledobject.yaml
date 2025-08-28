@@ -7,8 +7,8 @@ spec:
   scaleTargetRef:
     name: ocr-worker
   minReplicaCount: 1
-  maxReplicaCount: 40  # Increased for 500+ job capacity
-  pollingInterval: 10  # Very responsive scaling (10s vs 15s)
+  maxReplicaCount: 60  # Increased for guaranteed 500+ job capacity
+  pollingInterval: 3   # Ultra responsive scaling (3s polling)
   cooldownPeriod: 30   # Fast recovery from scale-downs (30s vs 60s)
   # Aggressive scaling controls for high-throughput workloads
   advanced:
@@ -19,10 +19,10 @@ spec:
           stabilizationWindowSeconds: 0  # No stabilization - scale immediately
           policies:
           - type: Percent
-            value: 200  # Max 200% increase per minute (much more aggressive)
+            value: 300  # Max 300% increase per 15 seconds (extremely aggressive)
             periodSeconds: 15  # Check every 15 seconds
           - type: Pods
-            value: 20   # Max 20 pods per minute (doubled)
+            value: 30   # Max 30 pods per 15 seconds (tripled)
             periodSeconds: 15
           selectPolicy: Max  # Take maximum of both policies (aggressive)
         scaleDown:
@@ -32,10 +32,21 @@ spec:
             value: 25   # Max 25% decrease per minute (more conservative)
             periodSeconds: 60
   triggers:
+  # Primary trigger for normal scaling (2 messages per worker)
   - type: azure-servicebus
     metadata:
       queueName: ocr-jobs
       namespace: ${SERVICE_BUS_NAMESPACE}
-      messageCount: "5"  # Lower threshold (5 vs 10) for faster scaling
+      messageCount: "2"  # Aggressive threshold (2 vs 5) for fastest scaling
+      activationQueueLength: "1"  # Start scaling at just 1 message
+    authenticationRef:
+      name: ocr-worker-trigger-auth
+  # Secondary trigger for burst scaling (queue depth > 100 messages)
+  - type: azure-servicebus
+    metadata:
+      queueName: ocr-jobs
+      namespace: ${SERVICE_BUS_NAMESPACE}
+      messageCount: "100"  # High threshold for burst scenarios (500+ jobs)
+      activationQueueLength: "100"  # Activate burst scaling at 100 messages
     authenticationRef:
       name: ocr-worker-trigger-auth

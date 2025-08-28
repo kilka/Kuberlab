@@ -74,13 +74,17 @@ spec:
           value: "3"
         - name: METRICS_PORT
           value: "8001"
+        - name: CONCURRENT_WORKERS
+          value: "3"
+        - name: TESSERACT_POOL_SIZE
+          value: "3"
         resources:
           requests:
-            cpu: 50m    # Reduced for better node packing
-            memory: 256Mi
+            cpu: 250m   # Guaranteed CPU for OCR processing (QoS class Guaranteed)
+            memory: 1Gi # Tesseract needs minimum 1GB for reliable processing
           limits:
-            cpu: 250m   # Allows 8 workers per node vs 4
-            memory: 1Gi
+            cpu: 500m   # Allow bursts for Tesseract processing (6 workers per D4s_v3 node)
+            memory: 2Gi # Prevent OOM during concurrent processing
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true

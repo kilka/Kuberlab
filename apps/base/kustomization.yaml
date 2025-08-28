@@ -6,6 +6,9 @@ resources:
   - namespaces/ocr-namespace.yaml
   - namespaces/arc-system-namespace.yaml
   
+  # Resource Quotas
+  - resourcequota/
+  
   # Service Accounts
   - serviceaccounts/ocr-api-sa.yaml
   - serviceaccounts/ocr-worker-sa.yaml

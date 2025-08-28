@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ocr-resource-quota
+  namespace: ocr
+spec:
+  hard:
+    # CPU limits
+    requests.cpu: "20"      # Maximum 20 CPU cores requested (80 workers @ 250m each)
+    limits.cpu: "40"        # Maximum 40 CPU cores limit (80 workers @ 500m each)
+    
+    # Memory limits
+    requests.memory: "80Gi" # Maximum 80GB memory requested (80 workers @ 1Gi each)
+    limits.memory: "160Gi"  # Maximum 160GB memory limit (80 workers @ 2Gi each)
+    
+    # Pod limits
+    pods: "100"             # Maximum 100 pods (safety margin for API + workers)
+    
+    # Persistent volume limits
+    persistentvolumeclaims: "10"
+    requests.storage: "100Gi"
+    
+    # Service limits
+    services: "10"
+    services.loadbalancers: "2"
