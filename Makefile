@@ -21,6 +21,8 @@ help:
 	@echo "$(BLUE)OCR AKS Infrastructure$(NC)"
 	@echo "======================="
 	@echo ""
+	@echo "$(YELLOW)💡 Get your subscription ID: az account show --query id -o tsv$(NC)"
+	@echo ""
 	@echo "$(GREEN)Commands:$(NC)"
 	@echo "  make init           - Initialize Terraform"
 	@echo "  make plan           - Review what will be created"
@@ -58,11 +60,14 @@ plan: init
 		cp $(TF_DIR)/terraform.tfvars.example $(TF_DIR)/terraform.tfvars; \
 		echo "$(YELLOW)Enter your email for budget alerts:$(NC)"; \
 		read -p "Email: " email; \
+		echo "$(YELLOW)Enter your Azure subscription ID:$(NC)"; \
+		read -p "Subscription ID: " subscription_id; \
 		sed -i.bak "s/your-email@example.com/$$email/g" $(TF_DIR)/terraform.tfvars; \
-		rm $(TF_DIR)/terraform.tfvars.bak; \
+		sed -i.bak2 "s/your-subscription-id/$$subscription_id/g" $(TF_DIR)/terraform.tfvars; \
+		rm $(TF_DIR)/terraform.tfvars.bak $(TF_DIR)/terraform.tfvars.bak2; \
 	fi
-	@if grep -q "your-email@example.com" $(TF_DIR)/terraform.tfvars 2>/dev/null; then \
-		echo "$(RED)ERROR: Update budget_alert_email in $(TF_DIR)/terraform.tfvars$(NC)"; \
+	@if grep -q "your-email@example.com\|your-subscription-id" $(TF_DIR)/terraform.tfvars 2>/dev/null; then \
+		echo "$(RED)ERROR: Update budget_alert_email and subscription_id in $(TF_DIR)/terraform.tfvars$(NC)"; \
 		exit 1; \
 	fi
 	@cd $(TF_DIR) && terraform plan -out=tfplan

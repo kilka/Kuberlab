@@ -61,6 +61,16 @@ variable "budget_alert_email" {
   }
 }
 
+variable "subscription_id" {
+  description = "Azure subscription ID (required)"
+  type        = string
+  
+  validation {
+    condition     = can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.subscription_id))
+    error_message = "Must be a valid Azure subscription ID (GUID format)."
+  }
+}
+
 
 locals {
   # Common naming convention

@@ -9,7 +9,6 @@ resource "azurerm_kubernetes_cluster" "main" {
 
   # Entra ID (AAD) RBAC Integration
   azure_active_directory_role_based_access_control {
-    managed            = true
     azure_rbac_enabled = true
     tenant_id          = var.tenant_id != null ? var.tenant_id : data.azurerm_client_config.current.tenant_id
   }
@@ -34,7 +33,7 @@ resource "azurerm_kubernetes_cluster" "main" {
     node_count           = var.system_node_count
     min_count            = var.system_node_min_count
     max_count            = var.system_node_max_count
-    enable_auto_scaling  = true
+    auto_scaling_enabled = true
     vm_size              = var.system_node_vm_size
     vnet_subnet_id       = var.subnet_id
     orchestrator_version = var.kubernetes_version
@@ -74,8 +73,8 @@ resource "azurerm_kubernetes_cluster" "main" {
   local_account_disabled = false # Enabled for demo automation - would disable in production
 
   # Cost optimization
-  automatic_channel_upgrade = "patch"
-  node_os_channel_upgrade   = "NodeImage"
+  automatic_upgrade_channel = "patch"
+  node_os_upgrade_channel   = "NodeImage"
 
   # Maintenance window
   maintenance_window {
@@ -102,7 +101,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "user" {
   node_count            = var.user_node_count
   min_count             = var.user_node_min_count
   max_count             = var.user_node_max_count
-  enable_auto_scaling   = true
+  auto_scaling_enabled  = true
   vnet_subnet_id        = var.subnet_id
   orchestrator_version  = var.kubernetes_version
 

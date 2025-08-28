@@ -3,7 +3,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.116"
+      version = "~> 4.41"
     }
     azuread = {
       source  = "hashicorp/azuread"
@@ -39,7 +39,8 @@ provider "azurerm" {
       prevent_deletion_if_contains_resources = false
     }
   }
-  skip_provider_registration = false
+  resource_provider_registrations = "none"
+  subscription_id                 = var.subscription_id
 }
 
 provider "azuread" {}
