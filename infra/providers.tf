@@ -9,10 +9,6 @@ terraform {
       source  = "hashicorp/azuread"
       version = "~> 2.53"
     }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.32"
-    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.6"
@@ -44,15 +40,6 @@ provider "azurerm" {
 }
 
 provider "azuread" {}
-
-# Kubernetes provider using AKS admin credentials
-# This is only used to create the minimal handoff Secret
-provider "kubernetes" {
-  host                   = module.aks.admin_host
-  client_certificate     = base64decode(module.aks.admin_client_certificate)
-  client_key             = base64decode(module.aks.admin_client_key)
-  cluster_ca_certificate = base64decode(module.aks.admin_cluster_ca_certificate)
-}
 
 data "azurerm_client_config" "current" {}
 

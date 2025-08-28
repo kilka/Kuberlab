@@ -30,13 +30,13 @@ resource "azurerm_storage_account" "main" {
 # Container for uploaded images
 resource "azurerm_storage_container" "uploads" {
   name                  = "uploads"
-  storage_account_name  = azurerm_storage_account.main.name
+  storage_account_id    = azurerm_storage_account.main.id
   container_access_type = "private"
 }
 
 # Container for OCR results
 resource "azurerm_storage_container" "results" {
   name                  = "results"
-  storage_account_name  = azurerm_storage_account.main.name
+  storage_account_id    = azurerm_storage_account.main.id
   container_access_type = "private"
 }
