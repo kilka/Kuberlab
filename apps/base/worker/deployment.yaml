@@ -95,7 +95,7 @@ spec:
             - ALL
         livenessProbe:
           httpGet:
-            path: /
+            path: /metrics
             port: metrics
           initialDelaySeconds: 15
           periodSeconds: 30
