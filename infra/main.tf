@@ -50,9 +50,9 @@ module "aks" {
   log_analytics_workspace_id = module.monitoring.workspace_id
   tenant_id                  = local.tenant_id
   
-  # Node configuration - Updated VM sizes due to capacity issues
-  system_node_vm_size   = "Standard_B2ms"  # Changed from default B2s
-  user_node_vm_size     = "Standard_B2ms"  # Changed from default B2s
+  # Node configuration - D4s_v3 for high-throughput OCR workloads (4 vCPU, 16GB)
+  system_node_vm_size   = "Standard_B2ms"  # Keep system pool small
+  user_node_vm_size     = "Standard_D4s_v3"  # Upgrade for 500+ job capacity
   user_node_min_count   = 1                # Changed from 0 to ensure KEDA/workloads can run
   
   tags = local.common_tags
