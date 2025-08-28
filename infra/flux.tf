@@ -64,6 +64,16 @@ resource "azurerm_kubernetes_flux_configuration" "main" {
     
     # Applications depend on controllers
     depends_on = ["controllers"]
+    
+    # Variable substitution from the handoff Secret
+    post_build {
+      substitute_from {
+        kind = "Secret"
+        name = "cluster-config"
+        optional = false
+      }
+    }
+    
     sync_interval_in_seconds = 300
     retry_interval_in_seconds = 60
     timeout_in_seconds = 600

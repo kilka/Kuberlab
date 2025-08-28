@@ -4,8 +4,6 @@ kind: Kustomization
 resources:
   # Base application resources
   - ../../../apps/base
-  # Flux Kustomization for variable substitution
-  - kustomization-apps.yaml
 
 # Image transformations - replaces simple image names with full ACR URLs
 images:
