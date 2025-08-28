@@ -45,6 +45,12 @@ class ProxyHandler(SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
     
+    def do_PUT(self):
+        if self.path.startswith('/blob-proxy/'):
+            self.proxy_blob_upload()
+        else:
+            self.send_error(404)
+    
     def proxy_request(self):
         """Proxy requests to the actual API."""
         # Remove /api prefix and construct target URL
@@ -133,6 +139,70 @@ class ProxyHandler(SimpleHTTPRequestHandler):
             # Other errors
             error_response = json.dumps({
                 "error": "Proxy error",
+                "detail": str(e)
+            })
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(error_response)))
+            self.end_headers()
+            self.wfile.write(error_response.encode())
+    
+    def proxy_blob_upload(self):
+        """Proxy blob uploads to Azure Storage to avoid CORS issues."""
+        # Extract blob URL from path: /blob-proxy/{encoded_url}
+        import urllib.parse
+        
+        encoded_url = self.path[12:]  # Remove '/blob-proxy/'
+        try:
+            blob_url = urllib.parse.unquote(encoded_url)
+        except Exception as e:
+            error_response = json.dumps({
+                "error": "Invalid blob URL",
+                "detail": str(e)
+            })
+            self.send_response(400)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(error_response)))
+            self.end_headers()
+            self.wfile.write(error_response.encode())
+            return
+        
+        try:
+            # Read the file data
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length == 0:
+                raise Exception("No file data provided")
+            
+            file_data = self.rfile.read(content_length)
+            
+            # Prepare headers for Azure Blob Storage
+            headers = {
+                'x-ms-blob-type': self.headers.get('x-ms-blob-type', 'BlockBlob'),
+                'Content-Type': self.headers.get('Content-Type', 'application/octet-stream')
+            }
+            
+            # Upload to Azure Blob Storage
+            response = requests.put(blob_url, data=file_data, headers=headers, timeout=60)
+            
+            # Send response back to client
+            self.send_response(response.status_code)
+            
+            # Send headers
+            for key, value in response.headers.items():
+                if key.lower() not in ['connection', 'transfer-encoding', 'content-encoding']:
+                    self.send_header(key, value)
+            
+            self.end_headers()
+            
+            # Send body if any
+            if response.content:
+                self.wfile.write(response.content)
+            
+            print(f"🔄 Blob Proxy: Uploaded to {blob_url[:50]}... -> HTTP {response.status_code}")
+                
+        except Exception as e:
+            error_response = json.dumps({
+                "error": "Blob upload failed",
                 "detail": str(e)
             })
             self.send_response(500)

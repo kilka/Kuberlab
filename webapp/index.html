@@ -351,13 +351,15 @@
                 jobInfo.style.display = 'block';
 
                 // Update loading message
-                resultContent.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top: 10px; color: #666;">Uploading directly to Azure Blob Storage...</p></div>';
+                resultContent.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top: 10px; color: #666;">Uploading to Azure Blob Storage via proxy...</p></div>';
 
-                // Step 2: Upload directly to blob storage using SAS URL
-                const uploadResponse = await fetch(upload_url, {
+                // Step 2: Upload via proxy to avoid CORS issues
+                const encodedUrl = encodeURIComponent(upload_url);
+                const uploadResponse = await fetch(`/blob-proxy/${encodedUrl}`, {
                     method: 'PUT',
                     headers: {
-                        'x-ms-blob-type': 'BlockBlob'
+                        'x-ms-blob-type': 'BlockBlob',
+                        'Content-Type': file.type
                     },
                     body: file
                 });

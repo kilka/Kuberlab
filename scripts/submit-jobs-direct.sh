@@ -19,7 +19,7 @@ BOLD='\033[1m'
 # Default values
 NUM_JOBS=${1:-50}
 TEST_IMAGE=${2:-"../test_image.png"}
-PARALLEL_JOBS=100  # Increased for direct uploads (less API load)
+PARALLEL_JOBS=50   # Reduced for better reliability (was 100, causing connection issues)
 OUTPUT_FILE="/tmp/ocr_job_ids_$$.txt"
 
 # Validate inputs
@@ -94,9 +94,7 @@ submit_job_direct() {
     local filename=$(basename "$unique_image")
     
     # Step 1: Get upload URL
-    local upload_response=$(curl -s -X POST "${API_URL}/generate-upload-url" \
-        -H "Content-Type: application/json" \
-        -d "{\"filename\":\"$filename\"}" \
+    local upload_response=$(curl -s -X POST "${API_URL}/generate-upload-url?filename=${filename}" \
         --max-time 10 \
         -w "\nHTTP_CODE:%{http_code}" 2>&1)
     
@@ -137,10 +135,10 @@ submit_job_direct() {
     fi
     
     # Step 3: Confirm upload and queue job
-    local confirm_response=$(curl -s -X POST "${API_URL}/ocr/confirm-upload" \
-        -H "Content-Type: application/json" \
-        -d "{\"job_id\":\"$job_id\",\"filename\":\"$filename\"}" \
-        --max-time 10 \
+    local confirm_response=$(curl -s -X POST "${API_URL}/ocr/confirm-upload?job_id=${job_id}&filename=${filename}" \
+        --max-time 15 \
+        --retry 2 \
+        --retry-delay 1 \
         -w "\nHTTP_CODE:%{http_code}" 2>&1)
     
     local confirm_exit_code=$?
@@ -192,13 +190,13 @@ for ((i=1; i<=NUM_JOBS; i+=$PARALLEL_JOBS)); do
     
     # Small pause between batches to avoid overwhelming the API
     if [ $BATCH_END -lt $NUM_JOBS ]; then
-        sleep 0.2  # Reduced pause for direct uploads
+        sleep 1  # Increased pause for better reliability
     fi
     
-    # Extra pause every 200 jobs (increased threshold for direct uploads)
-    if [ $((i % 200)) -eq 0 ] && [ $i -lt $NUM_JOBS ]; then
-        echo -e "${YELLOW}Pausing 2 seconds to let system stabilize...${NC}"
-        sleep 2
+    # Extra pause every 100 jobs to let system stabilize
+    if [ $((i % 100)) -eq 0 ] && [ $i -lt $NUM_JOBS ]; then
+        echo -e "${YELLOW}Pausing 3 seconds to let system stabilize...${NC}"
+        sleep 3
     fi
 done
 

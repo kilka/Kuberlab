@@ -60,6 +60,12 @@ spec:
           value: "uploads"
         - name: TABLE_NAME
           value: "ocrjobs"
+        command: ["uvicorn"]
+        args: 
+        - "main:app"
+        - "--host=0.0.0.0"
+        - "--port=8000"
+        - "--workers=2"
         resources:
           requests:
             cpu: 100m   # More realistic baseline for API workloads
