@@ -83,7 +83,7 @@ spec:
             cpu: 150m   # Based on observed 402-480m peak usage per worker
             memory: 256Mi # Based on observed 42-154Mi actual usage + buffer
           limits:
-            cpu: 800m   # 2x headroom for OCR processing bursts
+            cpu: 500m   # 1.2x headroom for OCR processing (was 800m, causing overcommit)
             memory: 512Mi # 3x headroom for concurrent processing
         securityContext:
           allowPrivilegeEscalation: false
